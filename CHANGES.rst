@@ -4,44 +4,46 @@ CHANGES
 
 3.0.0
 =====
-- Current feature set: BepiPred-3.0 linear B-cell epitope prediction, IEDB ``mhc_i``/``mhc_ii``
-  MHC-I and MHC-II epitope prediction (8 selectable methods for MHC-I, including NetMHCpan),
-  class-I immunogenicity prediction over pMHC complexes, MHC population coverage, and ElliPro
-  conformational B-cell epitope prediction over atomic structures.
-- ``validateInstallation`` only checked the BepiPred install; extended to also validate the MHC-I,
-  MHC-II, population coverage, immunogenicity and ElliPro installs, so a missing/incomplete
-  package is reported instead of only surfacing as a runtime failure. Each protocol now overrides
-  ``validateInstallation`` with its own single-package check, so running one protocol no longer
-  requires every package this plugin bundles to be installed.
+- Current feature set: BepiPred-3.0 linear B-cell epitope prediction (absorbed from the formerly
+  separate ``scipion-chem-bepipred`` plugin, including its gap-tolerant sliding-window
+  epitope-extraction mode as a second, selectable algorithm), IEDB ``mhc_i``/``mhc_ii`` MHC-I and
+  MHC-II epitope prediction (8 and 6 selectable methods respectively, including NetMHCpan and
+  NetMHCIIpan), class-I immunogenicity prediction over pMHC complexes, MHC population coverage, and
+  ElliPro conformational B-cell epitope prediction over atomic structures.
+- ``validateInstallation`` only ever checked the BepiPred install, silently passing even when
+  another package was never configured; each protocol now validates only the single package it
+  actually needs, and the plugin-wide check (used by the plugin manager) validates all six.
 - ``getDefaultDir`` resolved a package's home directory by a bare substring match against the
   ``EM_ROOT`` directory listing; since ``mhc_i`` is itself a substring of ``mhc_ii``, this could
   silently resolve MHC-I's home to the MHC-II install directory (or vice versa) depending on
-  filesystem listing order. Now requires the pattern to match the whole directory name or be
-  followed by a separator.
+  filesystem listing order. Now requires the pattern to match the whole directory name, or be
+  followed by a separator or a digit (so folder names like ``BepiPred3_src`` still match).
 - ``ProtBepiPredPrediction`` inherited ``ProtMHCIIPrediction``'s ``_validate()``, which reads a
   ``lengths`` parameter BepiPred's own form never defines, crashing before the protocol could run;
   restored an explicit no-op override.
-- Absorbed the BepiPred protocol previously maintained as a separate plugin
-  (``scipion-chem-bepipred``, now deprecated), including its gap-tolerant sliding-window
-  epitope-extraction mode as a second, selectable extraction algorithm.
 - The vendored ``predict_immunogenicity.py`` script requires Python 2; ``runImmunogenicity`` now
   uses a configurable ``IMMUNO_PYTHON_BIN`` interpreter instead of a hardcoded ``python`` call.
+- ``predict_binding.py``'s real output has a different column layout per MHC-I method (netmhcpan:
+  10 columns, includes core/icore; ann/smm/smmpmbec/comblib_sidney2008/pickpocket: 8 columns;
+  consensus: 13 columns, one rank per submethod, no single ic50), which the code assumed was
+  always netmhcpan's layout, crashing for 5 of the other 7 methods. Fixed with negative column
+  indices (rank is always the last column, ic50/score always the second to last, regardless of the
+  total column count) plus a dedicated column and a validation error for consensus, which has no
+  single ic50 value. The same class of fix applies on the MHC-II side for its Consensus method
+  (24 columns, its own rank column, no single score value).
+- "PickPocket-1.1" passed the literal string ``pìckpocket`` (an accented i) to the real tool, which
+  rejects it outright as an unknown method name.
+- ``filterAlleles`` crashed with a ``KeyError`` whenever a predefined allele wasn't supported by the
+  chosen MHC-I method (e.g. comblib_sidney2008 only covers 14 of them); now skips it instead.
+- MHC-II's predefined allele groups (DR7, MHCII_FREQ) are written without the "HLA-" prefix, while
+  four of its six methods' own allele files use it, silently producing an empty allele list and a
+  failing tool invocation. Added ``matchAllelesToMethod()`` to normalize both sides before matching.
+- MHC-II's "Consensus-2.2" method mapped to the internal key ``consensus``, but the real tool and
+  allele-file name is ``consensus3``.
 - Documented the MHC-I, MHC-II, population coverage, immunogenicity and ElliPro packages as
   directly downloadable (no license request form, unlike BepiPred's separate DTU service), and
   added the previously-missing download instructions for the immunogenicity and ElliPro packages.
-- Verified end to end (real downloads, real installs, real ``scipion3 test`` runs, not mocked):
-  BepiPred (both extraction modes), MHC-I, MHC-II, population coverage, immunogenicity and ElliPro
-  all pass.
-- ``getDefaultDir`` required the pattern to be followed by a separator, which broke matching the
-  documented ``BepiPred3_src`` folder name (no separator between the tool name and its version
-  digit); now also accepts a digit immediately after the pattern.
-- Exercised every selectable MHC-I/MHC-II method (not just the default), which surfaced six more
-  real bugs, all fixed: a column-index mismatch affecting 5 of MHC-I's 8 methods and MHC-II's
-  Consensus method (each real IEDB tool output format has a different column layout depending on
-  the method); ``filterAlleles`` crashing instead of skipping an allele unsupported by the chosen
-  method; MHC-II's predefined allele groups silently producing an empty allele list for 4 of its 6
-  methods due to an "HLA-" prefix mismatch; "PickPocket-1.1" passing a mistyped, non-ASCII method
-  name to the real tool; and MHC-II's "Consensus-2.2" using the wrong internal method/allele-file
-  name. Added permanent test coverage for every method and for the previously entirely untested
-  "label an existing set of sequence ROIs" input mode. NetMHC_Cons (MHC-I) reproducibly fails
-  inside the vendored IEDB package itself in this environment; left alone as third-party code.
+- Added test coverage for every selectable MHC-I/MHC-II method and for the "label an existing set
+  of sequence ROIs" input mode, neither of which had any coverage before. NetMHC_Cons (one of
+  MHC-I's methods) reproducibly fails inside the vendored IEDB package itself, independent of any
+  input; left unaddressed as third-party code.
