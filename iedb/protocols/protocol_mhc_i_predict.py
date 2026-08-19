@@ -46,6 +46,10 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
   MINLEN, MAXLEN = 8, 14
   selMap = {RANK: 'rank', IC50: 'ic50', TOPP: 'topPerc', NTOP: 'topN'}
 
+  @classmethod
+  def validateInstallation(cls):
+    return iedbPlugin.validateMHCIInstallation()
+
   _mhciMethodsDic = {'IEDB recommended': 'netmhcpan', 'Consensus-2.18': 'consensus',
                      'NetMHC_Cons': 'netmhccons', 'ANN-4.0': 'ann', 'SMMPMBEC-1.0': 'smmpmbec', 'SMM-1.0': 'smm',
                      'Combinatorial Library-1.0': 'comblib_sidney2008', 'PickPocket-1.1': 'pìckpocket'}

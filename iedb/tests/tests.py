@@ -75,6 +75,20 @@ class TestBepiPredPrediction(BaseImportSeq):
 		self._waitOutput(protBepiPred, 'outputROIs', sleepTime=10)
 		assertHandle(self.assertIsNotNone, getattr(protBepiPred, 'outputROIs', None))
 
+class TestBepiPredPredictionWindowVote(TestBepiPredPrediction):
+	'''Same as TestBepiPredPrediction but exercising the gap-tolerant sliding window extraction
+	mode (extractionMode=1), the generic alternative to the default threshold + soft extension
+	algorithm.'''
+
+	def _runBepiPredPrediction(self):
+		protBepiPred = self.newProtocol(ProtBepiPredPrediction, extractionMode=1)
+
+		protBepiPred.inputSequence.set(self.protImportSeq)
+		protBepiPred.inputSequence.setExtended('outputSequence')
+
+		self.proj.launchProtocol(protBepiPred, wait=False)
+		return protBepiPred
+
 class TestMHCIPrediction(BaseImportSeq):
 	def _runMHCIPrediction(self):
 		protMHCI = self.newProtocol(ProtMHCIPrediction)

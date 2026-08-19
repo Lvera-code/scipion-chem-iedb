@@ -46,6 +46,10 @@ class ProtMHCIIPrediction(EMProtocol):
   MINLEN, MAXLEN = 11, 30
   selMap = {RANK: 'rank', SCORE: 'score', TOPP: 'topPerc', NTOP: 'topN'}
 
+  @classmethod
+  def validateInstallation(cls):
+    return iedbPlugin.validateMHCIIInstallation()
+
   _mhciiMethodsDic = {'IEDB recommended': 'netmhciipan', 'Consensus-2.2': 'consensus',
                      'NN_align-1.0': 'nn_align', 'SMM_align-1.1': 'smm_align',
                      'Combinatorial Library-1.1': 'comblib', 'Sturniolo': 'sturniolo'}

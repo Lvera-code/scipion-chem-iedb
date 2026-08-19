@@ -44,6 +44,10 @@ class ProtImmunogenicityPrediction(EMProtocol):
   MHC (pMHC) complex over a set of sequence ROIs"""
   _label = 'immunogenicity prediction'
 
+  @classmethod
+  def validateInstallation(cls):
+    return iedbPlugin.validateImmunogenicityInstallation()
+
   def __init__(self, **kwargs):
     EMProtocol.__init__(self, **kwargs)
 

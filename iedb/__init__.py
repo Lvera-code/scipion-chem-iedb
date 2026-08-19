@@ -230,9 +230,10 @@ class Plugin(pwchemPlugin):
 
 
 	@classmethod
-	def validateInstallation(cls):
-		""" Check if the installation of this protocol is correct. Returning an empty list means that the installation
-		is correct and there are not errors. If some errors are found, a list with the error messages will be returned."""
+	def validateBepiPredInstallation(cls):
+		""" Check if the BepiPred installation alone is correct. Returning an empty list means that the
+		installation is correct and there are not errors. If some errors are found, a list with the error
+		messages will be returned."""
 		mPaths = []
 		if not cls.checkVarPath(BEPIPRED_DIC, 'home'):
 			mPaths.append(f"Path of BepiPred home (folder like BepiPred3_src) does not exist.\n"
@@ -242,22 +243,62 @@ class Plugin(pwchemPlugin):
 										f"{emConfig.EM_ROOT} keeping the '{BEPIPRED_DIC['pattern']}' pattern.")
 		elif not cls.checkCallEnv(BEPIPRED_DIC):
 			mPaths.append(f"Activation of the BepiPred environment failed.\n")
+		return mPaths
 
-		for softDic, progFile in [(MHCI_DIC, 'src/predict_binding.py'), (MHCII_DIC, 'mhc_II_binding.py'),
-															 (COVE_DIC, 'calculate_population_coverage.py'), (IMMU_DIC, 'predict_immunogenicity.py')]:
-			if not cls.checkVarPath(softDic, 'home') or \
-					not os.path.exists(os.path.join(cls.getVar(softDic['home']), progFile)):
-				mPaths.append(f"Path of {softDic['name']} home does not exist or is incomplete.\n"
-											f"You must either define it in the scipion.conf (as {softDic['home']} = <pathTo{softDic['name']}Folder>) "
-											f"or define the location of the raw downloaded tar file as "
-											f"{softDic['tar']} = <pathTo{softDic['name']}Tar>.\nAlternatively, you can move the home folder into "
-											f"{emConfig.EM_ROOT} keeping the '{softDic['pattern']}' pattern.")
+	@classmethod
+	def validatePackageInstallation(cls, softDic, progFile):
+		""" Check if a single manually-installed IEDB package (MHC-I, MHC-II, population coverage or
+		immunogenicity) is correct. Returning an empty list means that the installation is correct and
+		there are not errors. If some errors are found, a list with the error messages will be returned."""
+		mPaths = []
+		if not cls.checkVarPath(softDic, 'home') or \
+				not os.path.exists(os.path.join(cls.getVar(softDic['home']), progFile)):
+			mPaths.append(f"Path of {softDic['name']} home does not exist or is incomplete.\n"
+										f"You must either define it in the scipion.conf (as {softDic['home']} = <pathTo{softDic['name']}Folder>) "
+										f"or define the location of the raw downloaded tar file as "
+										f"{softDic['tar']} = <pathTo{softDic['name']}Tar>.\nAlternatively, you can move the home folder into "
+										f"{emConfig.EM_ROOT} keeping the '{softDic['pattern']}' pattern.")
+		return mPaths
 
+	@classmethod
+	def validateMHCIInstallation(cls):
+		return cls.validatePackageInstallation(MHCI_DIC, 'src/predict_binding.py')
+
+	@classmethod
+	def validateMHCIIInstallation(cls):
+		return cls.validatePackageInstallation(MHCII_DIC, 'mhc_II_binding.py')
+
+	@classmethod
+	def validateCoverageInstallation(cls):
+		return cls.validatePackageInstallation(COVE_DIC, 'calculate_population_coverage.py')
+
+	@classmethod
+	def validateImmunogenicityInstallation(cls):
+		return cls.validatePackageInstallation(IMMU_DIC, 'predict_immunogenicity.py')
+
+	@classmethod
+	def validateElliProInstallation(cls):
+		""" Check if the ElliPro installation alone is correct. Returning an empty list means that the
+		installation is correct and there are not errors. If some errors are found, a list with the error
+		messages will be returned."""
+		mPaths = []
 		if not cls.checkVarPath(ELLI_DIC, 'home') or \
 				not os.path.exists(os.path.join(cls.getVar(ELLI_DIC['home']), 'ElliPro.jar')):
 			mPaths.append(f"ElliPro.jar was not found in {ELLI_DIC['home']}.\n"
 										f"You must provide the downloaded jar file location in the scipion.conf as "
 										f"{ELLI_DIC['jar']} = <pathToElliProJar>.")
+		return mPaths
+
+	@classmethod
+	def validateInstallation(cls):
+		""" Check if the installation of the plugin as a whole is correct, across all six packages it
+		provides. Returning an empty list means that the installation is correct and there are not
+		errors. If some errors are found, a list with the error messages will be returned.
+		This is the plugin-wide check used e.g. by the plugin manager; individual protocols override
+		their own ``validateInstallation`` classmethod so that running one protocol only requires the
+		package it actually needs, not every package this plugin bundles."""
+		mPaths = cls.validateBepiPredInstallation() + cls.validateMHCIInstallation() + cls.validateMHCIIInstallation() + \
+						 cls.validateCoverageInstallation() + cls.validateImmunogenicityInstallation() + cls.validateElliProInstallation()
 
 		if len(mPaths) > 0:
 			mPaths.append(NOINSTALL_WARNING)
