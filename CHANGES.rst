@@ -32,3 +32,16 @@ CHANGES
 - Verified end to end (real downloads, real installs, real ``scipion3 test`` runs, not mocked):
   BepiPred (both extraction modes), MHC-I, MHC-II, population coverage, immunogenicity and ElliPro
   all pass.
+- ``getDefaultDir`` required the pattern to be followed by a separator, which broke matching the
+  documented ``BepiPred3_src`` folder name (no separator between the tool name and its version
+  digit); now also accepts a digit immediately after the pattern.
+- Exercised every selectable MHC-I/MHC-II method (not just the default), which surfaced six more
+  real bugs, all fixed: a column-index mismatch affecting 5 of MHC-I's 8 methods and MHC-II's
+  Consensus method (each real IEDB tool output format has a different column layout depending on
+  the method); ``filterAlleles`` crashing instead of skipping an allele unsupported by the chosen
+  method; MHC-II's predefined allele groups silently producing an empty allele list for 4 of its 6
+  methods due to an "HLA-" prefix mismatch; "PickPocket-1.1" passing a mistyped, non-ASCII method
+  name to the real tool; and MHC-II's "Consensus-2.2" using the wrong internal method/allele-file
+  name. Added permanent test coverage for every method and for the previously entirely untested
+  "label an existing set of sequence ROIs" input mode. NetMHC_Cons (MHC-I) reproducibly fails
+  inside the vendored IEDB package itself in this environment; left alone as third-party code.
