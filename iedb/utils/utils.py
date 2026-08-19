@@ -62,6 +62,20 @@ def getAllMHCIIAlleles(method, specie='human'):
     alleles = MOUSE_MHCII_ALLELES
   return alleles
 
+def normalizeAlleleName(allele):
+  '''Some MHC-II methods' allele lists carry an "HLA-" prefix and others do not (e.g. netmhciipan's
+  "DRB1*03:01" vs nn_align's "HLA-DRB1*03:01" for the very same allele), while the predefined allele
+  groups (DR7, MHCII_FREQ) are always written without it. Strip it for comparison purposes only.'''
+  return allele[4:] if allele.startswith('HLA-') else allele
+
+def matchAllelesToMethod(selAlleles, allowedAlleles):
+  '''Maps a list of selected alleles (as written in a predefined allele group) to the equivalent
+  entries in allowedAlleles (as written in a specific method's own allele file), regardless of
+  whether either side carries the "HLA-" prefix.'''
+  normAllowed = {normalizeAlleleName(a): a for a in allowedAlleles}
+  return [normAllowed[normalizeAlleleName(allele)] for allele in selAlleles
+          if normalizeAlleleName(allele) in normAllowed]
+
 def getMHCAlleles(roi, mhc):
   alleles = []
   if hasattr(roi, '_allelesMHCI') and mhc in ['I', 'combined']:

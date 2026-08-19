@@ -34,7 +34,7 @@ from pwchem.objects import Sequence, SequenceROI, SetOfSequenceROIs
 
 from .. import Plugin as iedbPlugin
 from ..constants import MHCII_alleles_dic
-from ..utils import getAllMHCIIAlleles
+from ..utils import getAllMHCIIAlleles, matchAllelesToMethod
 
 SEQ, SEQROIS = 0, 1
 RANK, SCORE, TOPP, NTOP = 0, 1, 2, 3
@@ -50,7 +50,7 @@ class ProtMHCIIPrediction(EMProtocol):
   def validateInstallation(cls):
     return iedbPlugin.validateMHCIIInstallation()
 
-  _mhciiMethodsDic = {'IEDB recommended': 'netmhciipan', 'Consensus-2.2': 'consensus',
+  _mhciiMethodsDic = {'IEDB recommended': 'netmhciipan', 'Consensus-2.2': 'consensus3',
                      'NN_align-1.0': 'nn_align', 'SMM_align-1.1': 'smm_align',
                      'Combinatorial Library-1.1': 'comblib', 'Sturniolo': 'sturniolo'}
   _species = ['Human', 'Mouse']
@@ -139,15 +139,12 @@ class ProtMHCIIPrediction(EMProtocol):
     inFile = self.writeInputFasta()
     oFile = self.getMHCOutputFile()
 
-    method = self._mhciiMethodsDic[self.getEnumText('method')]
-    if self.method.get() == 0:
-        pMode = 'ba' if self.predMode.get() == 0 else 'el'
-        method += f'_{pMode}'
+    method = self.getResolvedMethod()
     selAlleles = self.getSelectedAlleles()
     lenList = self.getLenghts()
 
     allowedAlleles = getAllMHCIIAlleles(method)
-    alList = [allele for allele in selAlleles if allele in allowedAlleles]
+    alList = matchAllelesToMethod(selAlleles, allowedAlleles)
     fullAlStr, fullLenStr = ','.join(alList), ','.join([str(l) for l in lenList])
 
     mhcArgs = f'{method.lower()} {fullAlStr} {inFile} {fullLenStr} > {oFile} '
@@ -210,9 +207,7 @@ class ProtMHCIIPrediction(EMProtocol):
   ##################### UTILS #####################
 
   def getAvailableAlleles(self):
-    methKey = self._mhciiMethodsDic[self.getEnumText('method')]
-    alleDic = getAllMHCIIAlleles(methKey)
-    return list(alleDic.keys())
+    return getAllMHCIIAlleles(self.getResolvedMethod())
 
   def writeInputFasta(self):
     faFile = self._getExtraPath('inputSequence.fa')
@@ -275,7 +270,22 @@ class ProtMHCIIPrediction(EMProtocol):
   def getMHCOutputFile(self):
     return os.path.abspath(self._getExtraPath('mhc-II_results.tsv'))
 
+  def getResolvedMethod(self):
+    '''The exact method string passed to mhc_II_binding.py, including the ba/el suffix for the
+    default (netmhciipan) method.'''
+    method = self._mhciiMethodsDic[self.getEnumText('method')]
+    if self.method.get() == 0:
+      pMode = 'ba' if self.predMode.get() == 0 else 'el'
+      method += f'_{pMode}'
+    return method
+
   def getRankIdx(self):
+    '''netmhciipan and the single-value methods -- nn_align, smm_align, comblib, sturniolo -- share
+    the same 10-column layout (percentile_rank at index 8, ic50/score at index 7). consensus3 is
+    structurally different (24 columns, no single ic50/score value, only per-submethod ones) and
+    reports its own percentile rank at index 6.'''
+    if self.getResolvedMethod() == 'consensus3':
+      return 6 if self.selType.get() != SCORE else None
     return 7 if self.selType.get() == SCORE else 8
 
   def getResultsArray(self, oFile):
@@ -303,11 +313,17 @@ class ProtMHCIIPrediction(EMProtocol):
     as {seq_id: {core: {(position, epitopeString): [allele, score]}}}
     '''
     resAr = self.getResultsArray(oFile)
+    isConsensus = self.getResolvedMethod() == 'consensus3'
 
     # Build the output from the selection
     epiDic = {}
     for row in resAr:
-      allele, seq_id, pos, _, _, core, peptide, score, rank = row[:9]
+      if isConsensus:
+        # consensus3 reports no single core (peptide window) shared across submethods
+        allele, seq_id, pos, peptide = row[0], row[1], row[2], row[5]
+        core = peptide
+      else:
+        allele, seq_id, pos, core, peptide = row[0], row[1], row[2], row[5], row[6]
       key = (int(pos), peptide)
       if not seq_id in epiDic:
         epiDic[seq_id] = {}
@@ -348,6 +364,10 @@ class ProtMHCIIPrediction(EMProtocol):
       if c == 0:
         vals.append(f'None of the input sequence ROIs is at least {min(lens)} residues long, so the analysis cannot '
                     f'be performed. Please check your input.')
+
+    if self.getResolvedMethod() == 'consensus3' and self.selType.get() == SCORE:
+      vals.append('The Consensus method does not report a single score/ic50 value (only one per '
+                  'submethod); select a different Selection type or method.')
 
     return vals
 
