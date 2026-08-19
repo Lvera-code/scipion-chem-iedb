@@ -25,7 +25,7 @@ setup(
     version='3.0.0',
     description='Scipion framework plugin for the use of iedb for T-cell epitope prediction',
     long_description=long_description,
-    url='https://github.com/scipion-chem/scipion-chem-tepitool',
+    url='https://github.com/scipion-chem/scipion-chem-iedb',
     author='Daniel Del Hoyo Gomez',
     author_email='scipion@cnb.csic.es',
     keywords='scipion epitope t-cell',

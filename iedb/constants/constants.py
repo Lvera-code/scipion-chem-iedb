@@ -47,9 +47,9 @@ ELLI_DIC = {'name': 'ellipro',    'version': '1.0', 'pattern': 'ellipro',
 IMMU_DIC = {'name': 'immunogenicity',    'version': '1.1', 'pattern': 'immunogenicity',
             'home': 'IMMUNO_HOME', 'tar': 'IMMUNO_TAR'}
 
-READ_URL = 'https://github.com/scipion-chem/scipion-chem-bepipred'
+READ_URL = 'https://github.com/scipion-chem/scipion-chem-iedb'
 
-NOINSTALL_WARNING = f'Installation could not be completed because BepiPred download or installation has not been found.\n' \
+NOINSTALL_WARNING = f'Installation could not be completed because one of the required IEDB packages was not found.\n' \
                     f'Please check the scipion-chem-iedb README file to see more details about how to proceed with ' \
                     f'the installation. You can find this instruction in {READ_URL}'
 
