@@ -314,12 +314,16 @@ class Plugin(pwchemPlugin):
 		pattern = softDic['pattern'].lower()
 		for file in os.listdir(emDir):
 			fileLower = file.lower()
-			# Exact pattern or pattern followed by a separator (e.g. 'mhc_i-3.1.5'), not just a
-			# substring match: 'mhc_i' is itself a substring of 'mhc_ii', so a bare "in" check
-			# could resolve MHC-I's directory to the MHC-II install (or vice versa).
-			if fileLower == pattern or fileLower.startswith(pattern + '-') or fileLower.startswith(pattern + '_'):
-				foundDir = os.path.join(emDir, file, fn)
-				return foundDir.rstrip('/')
+			# The directory name must start with the pattern, and whatever follows it (if anything)
+			# must be a separator or a digit, not a letter: a bare substring check would match
+			# 'mhc_ii-...' against pattern 'mhc_i' (since 'mhc_i' is itself a substring of 'mhc_ii'),
+			# silently resolving MHC-I's home to the MHC-II install. Allowing a digit right after the
+			# pattern (no separator) keeps matching folder names like 'BepiPred3_src'.
+			if fileLower.startswith(pattern):
+				rest = fileLower[len(pattern):]
+				if rest == '' or rest[0] in '-_' or rest[0].isdigit():
+					foundDir = os.path.join(emDir, file, fn)
+					return foundDir.rstrip('/')
 		return os.path.join(emConfig.EM_ROOT, cls.getEnvName(softDic))
 
 	@classmethod
