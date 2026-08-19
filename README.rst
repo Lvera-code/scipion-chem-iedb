@@ -58,7 +58,7 @@ http://tools.iedb.org/mhci/download/
 Once you obtain the software file (a tar.gz) you have several options to help Scipion finding it:
 
 Option 1) Edit the scipion.conf file and add the variables:
- - MHC-I_TAR = <PathToMhc-ITar> (IEDB_MHC_I-3.1.5.tar.gz)
+ - MHC_I_TAR = <PathToMhc-ITar> (IEDB_MHC_I-3.1.5.tar.gz)
 
 This way, Scipion will untar and move the corresponding files to the scipion/software/em folder and install mhc-i.
 
@@ -66,7 +66,7 @@ Option 2) If you have unzipped the mhc-i tars yourself you can either:
 
 2.1) Move the folder (of the form mhc_i) to the scipion/software/em folder. Scipion will find it there.
 
-2.2) Specify the location of the MHC folder in the scipion.conf file as: MHC-I_HOME = <PathToMhc-I_folder>
+2.2) Specify the location of the MHC folder in the scipion.conf file as: MHC_I_HOME = <PathToMhc-I_folder>
 
 |
 
@@ -80,7 +80,7 @@ http://tools.iedb.org/mhcii/download/
 Once you obtain the software file (a tar.gz) you have several options to help Scipion finding it:
 
 Option 1) Edit the scipion.conf file and add the variables:
- - MHC-II_TAR = <PathToMhc-IITar> (IEDB_MHC_II-3.1.5.tar.gz)
+ - MHC_II_TAR = <PathToMhc-IITar> (IEDB_MHC_II-3.1.11.tar.gz)
 
 This way, Scipion will untar and move the corresponding files to the scipion/software/em folder and install mhc-ii.
 
@@ -88,7 +88,7 @@ Option 2) If you have unzipped the mhc-ii tars yourself you can either:
 
 2.1) Move the folder (of the form mhc_ii) to the scipion/software/em folder. Scipion will find it there.
 
-2.2) Specify the location of the MHC folder in the scipion.conf file as: MHC-II_HOME = <PathToMhc-II_folder>
+2.2) Specify the location of the MHC folder in the scipion.conf file as: MHC_II_HOME = <PathToMhc-II_folder>
 
 |
 
@@ -104,7 +104,7 @@ Once you obtain the software file (a tar.gz) you have several options to help Sc
 Option 1) Edit the scipion.conf file and add the variables:
  - COVERAGE_TAR = <PathToPopCoverageTar> (IEDB_Population_Coverage-3.0.2.tar.gz)
 
-This way, Scipion will untar and move the corresponding files to the scipion/software/em folder and install mhc-ii.
+This way, Scipion will untar and move the corresponding files to the scipion/software/em folder and install population coverage.
 
 Option 2) If you have unzipped the population_coverage tars yourself you can either:
 
@@ -200,17 +200,18 @@ If you want the latest changes and developments, user devel branch.
 
 - **Tests**
 
-To check the installation, run the Scipion tests. BepiPred is the only tool this plugin's own test
-suite is willing to run automatically, since it is the only one that does not require a DTU-licensed
-tar download to already be configured in ``scipion.conf`` (see "Download IEDB files" above):
+To check the installation, run the Scipion tests. BepiPred requires the separate DTU-licensed
+download described above (see "Download IEDB files"):
 
 .. code-block::
 
             scipion3 tests iedb.tests.tests.TestBepiPredPrediction
 
 The remaining tests exercise the MHC-I, MHC-II, population coverage, ElliPro and immunogenicity
-protocols, and additionally require ``MHC_I_HOME``/``MHC_I_TAR``, ``MHC_II_HOME``/``MHC_II_TAR``,
-``COVERAGE_HOME``/``COVERAGE_TAR`` and ``ELLIPRO_HOME``/``ELLIPRO_JAR`` to be set as described above:
+protocols. These do not require any license request, only the packages themselves to be downloaded
+and configured as described above (``MHC_I_HOME``/``MHC_I_TAR``, ``MHC_II_HOME``/``MHC_II_TAR``,
+``COVERAGE_HOME``/``COVERAGE_TAR``, ``IMMUNO_HOME``/``IMMUNO_TAR`` and
+``ELLIPRO_HOME``/``ELLIPRO_JAR``):
 
 .. code-block::
 
