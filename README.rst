@@ -221,6 +221,11 @@ and configured as described above (``MHC_I_HOME``/``MHC_I_TAR``, ``MHC_II_HOME``
             scipion3 tests iedb.tests.tests.TestMHCPopulationCoverage
             scipion3 tests iedb.tests.tests.TestElliProPrediction
 
+Additional coverage is available for the "label an existing set of sequence ROIs" input mode
+(``TestMHCLabelROIs``) and for every non-default MHC-I/MHC-II method
+(``iedb.tests.test_alt_methods.TestAlternativeMethods``); run ``scipion3 tests iedb.tests`` to
+execute the full suite at once.
+
 ===================
 Protocols provided
 ===================
@@ -230,7 +235,9 @@ Protocols provided
 - **MHC-I prediction** (``ProtMHCIPrediction``): MHC-I epitope prediction over an input sequence
   (or allele labelling of an existing set of sequence ROIs), using any of the methods bundled in
   IEDB's ``mhc_i`` package (IEDB-recommended/NetMHCpan, Consensus, NetMHCcons, ANN, SMM, SMMPMBEC,
-  Combinatorial Library, PickPocket).
+  Combinatorial Library, PickPocket). NetMHCcons reproducibly fails inside the vendored ``mhc_i``
+  package itself, independent of input; this is a limitation of that third-party method, not of
+  this protocol.
 - **MHC-II prediction** (``ProtMHCIIPrediction``): MHC-II epitope prediction over an input sequence,
   using IEDB's ``mhc_ii`` package.
 - **Immunogenicity prediction** (``ProtImmunogenicityPrediction``): scores the immunogenicity of the
