@@ -2,20 +2,22 @@
 IEDB scipion plugin
 ================================
 
-**Documentation under development, sorry for the inconvenience**
-
 Scipion framework plugin for the use of tools provided by IEDB epitope tools.
-This plugin allows to use programs from the IEDB website for B-cell, MHC-I, MHC-II epitope predictions and population
-coverage within the Scipion framework. **You need to download the IEDB files
-before installing the plugin, see section "Download IEDB files" for details**.
+This plugin allows to use programs from the IEDB website for B-cell (BepiPred), MHC-I, MHC-II and
+conformational (ElliPro) epitope predictions, class-I immunogenicity and population coverage within
+the Scipion framework. **You need to download the IEDB files before installing the plugin, see
+section "Download IEDB files" for details**.
 
 ================================
 Download IEDB files
 ================================
 
-IEDB contains several software packages for epitope prediction and other tools meant for academic use only.
-You can download these packages in http://tools.iedb.org/tepitool/download/ .
-Now, specific instructions for each of the packages will be provided.
+IEDB contains several software packages for epitope prediction and other tools, distributed under
+their own academic-use license terms. BepiPred is a separate DTU Health Tech service and must be
+requested through the form linked below; the MHC-I, MHC-II, population coverage, immunogenicity and
+ElliPro packages are directly downloadable, without any request form, from
+https://downloads.iedb.org/tools/. Now, specific instructions for each of the packages will be
+provided.
 
 |
 
@@ -109,6 +111,49 @@ Option 2) If you have unzipped the population_coverage tars yourself you can eit
 2.1) Move the folder (of the form population_coverage) to the scipion/software/em folder. Scipion will find it there.
 
 2.2) Specify the location of the MHC folder in the scipion.conf file as: COVERAGE_HOME = <PathToPopCoverage_folder>
+
+|
+
+5. **Class-I immunogenicity tool**
+
+The immunogenicity tool contains a collection of python scripts to predict the immunogenicity of a
+peptide-MHC (pMHC) complex. The tar file can be downloaded from
+https://downloads.iedb.org/tools/immunogenicity/.
+
+Once you obtain the software file (a tar.gz) you have several options to help Scipion finding it:
+
+Option 1) Edit the scipion.conf file and add the variable:
+ - IMMUNO_TAR = <PathToImmunogenicityTar> (IEDB_Immunogenicity-1.1.tar.gz)
+
+This way, Scipion will untar and move the corresponding files to the scipion/software/em folder and
+install immunogenicity.
+
+Option 2) If you have unzipped the immunogenicity tar yourself you can either:
+
+2.1) Move the folder (of the form immunogenicity) to the scipion/software/em folder. Scipion will
+find it there.
+
+2.2) Specify the location of the immunogenicity folder in the scipion.conf file as:
+IMMUNO_HOME = <PathToImmunogenicity_folder>
+
+The vendored ``predict_immunogenicity.py`` script is written for Python 2. If your system's own
+``python`` no longer resolves to a Python 2 interpreter, point Scipion at one explicitly by setting
+IMMUNO_PYTHON_BIN = <PathToPython2Binary> in the scipion.conf file (e.g. a dedicated
+``conda create -n <env> python=2.7`` environment's interpreter).
+
+|
+
+6. **ElliPro tool**
+
+ElliPro is distributed as a single Java jar file and predicts conformational (structural) B-cell
+epitopes from an atomic structure. It can be downloaded from
+https://downloads.iedb.org/tools/ellipro/, and requires a Java runtime to be available.
+
+Once you obtain the jar file, point Scipion at it by editing the scipion.conf file and adding the
+variable:
+ - ELLIPRO_JAR = <PathToElliProJar> (ElliPro.jar)
+
+Scipion will move the jar file into the scipion/software/em folder on install.
 
 
 ===================

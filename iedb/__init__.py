@@ -73,6 +73,10 @@ class Plugin(pwchemPlugin):
 
 		cls._defineVar(IMMU_DIC['home'], cls.getDefaultDir(IMMU_DIC))
 		cls._defineVar(IMMU_DIC['tar'], None)
+		# The vendored predict_immunogenicity.py is a Python 2 script; default to a plain "python"
+		# call (working on systems where that still resolves to Python 2) unless a specific
+		# interpreter is configured.
+		cls._defineVar(IMMU_DIC['python_bin'], 'python')
 
 	@classmethod
 	def defineBinaries(cls, env):
@@ -307,11 +311,15 @@ class Plugin(pwchemPlugin):
 	@classmethod
 	def getDefaultDir(cls, softDic, fn=""):
 		emDir = emConfig.EM_ROOT
+		pattern = softDic['pattern'].lower()
 		for file in os.listdir(emDir):
-			if softDic['pattern'] in file.lower():
+			fileLower = file.lower()
+			# Exact pattern or pattern followed by a separator (e.g. 'mhc_i-3.1.5'), not just a
+			# substring match: 'mhc_i' is itself a substring of 'mhc_ii', so a bare "in" check
+			# could resolve MHC-I's directory to the MHC-II install (or vice versa).
+			if fileLower == pattern or fileLower.startswith(pattern + '-') or fileLower.startswith(pattern + '_'):
 				foundDir = os.path.join(emDir, file, fn)
 				return foundDir.rstrip('/')
-		# print(f'BepiPred software could not be found in SOFTWARE directory ({emDir})')
 		return os.path.join(emConfig.EM_ROOT, cls.getEnvName(softDic))
 
 	@classmethod
@@ -398,7 +406,8 @@ class Plugin(pwchemPlugin):
 	def runImmunogenicity(cls, protocol, args, cwd=None, popen=False):
 		""" Run immunogenicity command from a given protocol. """
 		immuHome = cls.getVar(IMMU_DIC["home"])
-		fullProgram = f'python {os.path.join(immuHome, "predict_immunogenicity.py")}'
+		pythonBin = cls.getVar(IMMU_DIC["python_bin"])
+		fullProgram = f'{pythonBin} {os.path.join(immuHome, "predict_immunogenicity.py")}'
 		if not popen:
 			protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
 		else:

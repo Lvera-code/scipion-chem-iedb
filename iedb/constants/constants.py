@@ -45,7 +45,7 @@ ELLI_DIC = {'name': 'ellipro',    'version': '1.0', 'pattern': 'ellipro',
             'home': 'ELLIPRO_HOME', 'jar': 'ELLIPRO_JAR'}
 
 IMMU_DIC = {'name': 'immunogenicity',    'version': '1.1', 'pattern': 'immunogenicity',
-            'home': 'IMMUNO_HOME', 'tar': 'IMMUNO_TAR'}
+            'home': 'IMMUNO_HOME', 'tar': 'IMMUNO_TAR', 'python_bin': 'IMMUNO_PYTHON_BIN'}
 
 READ_URL = 'https://github.com/scipion-chem/scipion-chem-iedb'
 
