@@ -240,9 +240,24 @@ class Plugin(pwchemPlugin):
 										f"or define the location of the raw dowloaded ZIP file (like bepipred-3.0b.src.zip) as "
 										f"{BEPIPRED_DIC['zip']} = <pathToBepiPredZip>.\nAlternatively, you can move the home folder into "
 										f"{emConfig.EM_ROOT} keeping the '{BEPIPRED_DIC['pattern']}' pattern.")
-
-		if not cls.checkCallEnv(BEPIPRED_DIC):
+		elif not cls.checkCallEnv(BEPIPRED_DIC):
 			mPaths.append(f"Activation of the BepiPred environment failed.\n")
+
+		for softDic, progFile in [(MHCI_DIC, 'src/predict_binding.py'), (MHCII_DIC, 'mhc_II_binding.py'),
+															 (COVE_DIC, 'calculate_population_coverage.py'), (IMMU_DIC, 'predict_immunogenicity.py')]:
+			if not cls.checkVarPath(softDic, 'home') or \
+					not os.path.exists(os.path.join(cls.getVar(softDic['home']), progFile)):
+				mPaths.append(f"Path of {softDic['name']} home does not exist or is incomplete.\n"
+											f"You must either define it in the scipion.conf (as {softDic['home']} = <pathTo{softDic['name']}Folder>) "
+											f"or define the location of the raw downloaded tar file as "
+											f"{softDic['tar']} = <pathTo{softDic['name']}Tar>.\nAlternatively, you can move the home folder into "
+											f"{emConfig.EM_ROOT} keeping the '{softDic['pattern']}' pattern.")
+
+		if not cls.checkVarPath(ELLI_DIC, 'home') or \
+				not os.path.exists(os.path.join(cls.getVar(ELLI_DIC['home']), 'ElliPro.jar')):
+			mPaths.append(f"ElliPro.jar was not found in {ELLI_DIC['home']}.\n"
+										f"You must provide the downloaded jar file location in the scipion.conf as "
+										f"{ELLI_DIC['jar']} = <pathToElliProJar>.")
 
 		if len(mPaths) > 0:
 			mPaths.append(NOINSTALL_WARNING)

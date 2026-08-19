@@ -155,7 +155,44 @@ If you want the latest changes and developments, user devel branch.
 
 - **Tests**
 
-To check the installation, simply run the following Scipion test:
+To check the installation, run the Scipion tests. BepiPred is the only tool this plugin's own test
+suite is willing to run automatically, since it is the only one that does not require a DTU-licensed
+tar download to already be configured in ``scipion.conf`` (see "Download IEDB files" above):
+
+.. code-block::
+
+            scipion3 tests iedb.tests.tests.TestBepiPredPrediction
+
+The remaining tests exercise the MHC-I, MHC-II, population coverage, ElliPro and immunogenicity
+protocols, and additionally require ``MHC_I_HOME``/``MHC_I_TAR``, ``MHC_II_HOME``/``MHC_II_TAR``,
+``COVERAGE_HOME``/``COVERAGE_TAR`` and ``ELLIPRO_HOME``/``ELLIPRO_JAR`` to be set as described above:
+
+.. code-block::
+
+            scipion3 tests iedb.tests.tests.TestMHCIPrediction
+            scipion3 tests iedb.tests.tests.TestMHCIIPrediction
+            scipion3 tests iedb.tests.tests.TestImmunogenicityPrediction
+            scipion3 tests iedb.tests.tests.TestMHCPopulationCoverage
+            scipion3 tests iedb.tests.tests.TestElliProPrediction
+
+===================
+Protocols provided
+===================
+
+- **BepiPred prediction** (``ProtBepiPredPrediction``): linear B-cell epitope prediction over an
+  input sequence using BepiPred-3.0, exposed as sequence ROIs.
+- **MHC-I prediction** (``ProtMHCIPrediction``): MHC-I epitope prediction over an input sequence
+  (or allele labelling of an existing set of sequence ROIs), using any of the methods bundled in
+  IEDB's ``mhc_i`` package (IEDB-recommended/NetMHCpan, Consensus, NetMHCcons, ANN, SMM, SMMPMBEC,
+  Combinatorial Library, PickPocket).
+- **MHC-II prediction** (``ProtMHCIIPrediction``): MHC-II epitope prediction over an input sequence,
+  using IEDB's ``mhc_ii`` package.
+- **Immunogenicity prediction** (``ProtImmunogenicityPrediction``): scores the immunogenicity of the
+  peptide-MHC (pMHC) complexes produced by the MHC-I protocol over a set of sequence ROIs.
+- **MHC population coverage** (``ProtMHCPopulationCoverage``): calculates population coverage for a
+  set of MHC-I/MHC-II epitopes across selected populations/areas.
+- **ElliPro prediction** (``ProtElliProPrediction``): conformational (structural) B-cell epitope
+  prediction over an input atomic structure, producing both structure and sequence ROIs.
 
 ===============
 Buildbot status
