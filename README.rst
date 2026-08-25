@@ -136,10 +136,11 @@ find it there.
 2.2) Specify the location of the immunogenicity folder in the scipion.conf file as:
 IMMUNO_HOME = <PathToImmunogenicity_folder>
 
-The vendored ``predict_immunogenicity.py`` script is written for Python 2. If your system's own
-``python`` no longer resolves to a Python 2 interpreter, point Scipion at one explicitly by setting
-IMMUNO_PYTHON_BIN = <PathToPython2Binary> in the scipion.conf file (e.g. a dedicated
-``conda create -n <env> python=2.7`` environment's interpreter).
+The vendored ``predict_immunogenicity.py`` script is written for Python 2. Scipion creates a
+dedicated ``immunogenicity-1.1`` conda environment for it automatically during installation, so
+no extra manual step is needed. If you want to use your own Python 2 installation instead,
+override the activation command in the scipion.conf file as:
+IMMUNO_ACTIVATION_CMD = <ActivationCommand>.
 
 |
 

@@ -21,8 +21,11 @@ CHANGES
 - ``ProtBepiPredPrediction`` inherited ``ProtMHCIIPrediction``'s ``_validate()``, which reads a
   ``lengths`` parameter BepiPred's own form never defines, crashing before the protocol could run;
   restored an explicit no-op override.
-- The vendored ``predict_immunogenicity.py`` script requires Python 2; ``runImmunogenicity`` now
-  uses a configurable ``IMMUNO_PYTHON_BIN`` interpreter instead of a hardcoded ``python`` call.
+- The vendored ``predict_immunogenicity.py`` script requires Python 2; ``defineBinaries`` now
+  creates a dedicated ``immunogenicity-1.1`` conda env for it at install time (like BepiPred's own
+  env), so users no longer have to build one themselves and wire it in through scipion.conf.
+  ``runImmunogenicity`` activates that env (``IMMUNO_ACTIVATION_CMD``, overridable) instead of
+  calling a configured interpreter path directly.
 - ``predict_binding.py``'s real output has a different column layout per MHC-I method (netmhcpan:
   10 columns, includes core/icore; ann/smm/smmpmbec/comblib_sidney2008/pickpocket: 8 columns;
   consensus: 13 columns, one rank per submethod, no single ic50), which the code assumed was

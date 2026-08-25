@@ -73,10 +73,9 @@ class Plugin(pwchemPlugin):
 
 		cls._defineVar(IMMU_DIC['home'], cls.getDefaultDir(IMMU_DIC))
 		cls._defineVar(IMMU_DIC['tar'], None)
-		# The vendored predict_immunogenicity.py is a Python 2 script; default to a plain "python"
-		# call (working on systems where that still resolves to Python 2) unless a specific
-		# interpreter is configured.
-		cls._defineVar(IMMU_DIC['python_bin'], 'python')
+		# The vendored predict_immunogenicity.py is a Python 2 script; installed into its own
+		# conda env (see _addImmunogenicityPackage) so users don't need to build one themselves.
+		cls._defineVar(IMMU_DIC['activation'], cls.getEnvActivationCommand(IMMU_DIC))
 
 	@classmethod
 	def defineBinaries(cls, env):
@@ -226,11 +225,14 @@ class Plugin(pwchemPlugin):
 
 		if immunoHome != emHome:
 			installationCmd += f"mv {immunoHome}/* {emHome} && rm -r {immunoHome} && "
+		# The vendored predict_immunogenicity.py is a Python 2 script; create a dedicated conda
+		# env for it here so users don't need any extra manual step.
+		installationCmd += f"conda create -y -n {cls.getEnvName(IMMU_DIC)} python=2.7 && "
 		installationCmd += f"touch {IMMUNO_INSTALLED}"
 
 		env.addPackage(IMMU_DIC['name'], version=IMMU_DIC['version'],
 									 commands=[(installationCmd, os.path.join(emHome, IMMUNO_INSTALLED))], tar='void.tgz',
-									 default=default, buildDir=os.path.split(immunoHome)[-1])
+									 neededProgs=["conda"], default=default, buildDir=os.path.split(immunoHome)[-1])
 
 
 	@classmethod
@@ -278,7 +280,14 @@ class Plugin(pwchemPlugin):
 
 	@classmethod
 	def validateImmunogenicityInstallation(cls):
-		return cls.validatePackageInstallation(IMMU_DIC, 'predict_immunogenicity.py')
+		""" Check if the Immunogenicity installation, including its own Python 2 conda env,
+		is correct. Returning an empty list means that the installation is correct and there
+		are not errors. If some errors are found, a list with the error messages will be
+		returned."""
+		mPaths = cls.validatePackageInstallation(IMMU_DIC, 'predict_immunogenicity.py')
+		if not mPaths and not cls.checkCallEnv(IMMU_DIC):
+			mPaths.append(f"Activation of the Immunogenicity environment failed.\n")
+		return mPaths
 
 	@classmethod
 	def validateElliProInstallation(cls):
@@ -409,9 +418,8 @@ class Plugin(pwchemPlugin):
 	@classmethod
 	def runImmunogenicity(cls, protocol, args, cwd=None, popen=False):
 		""" Run immunogenicity command from a given protocol. """
-		immuHome = cls.getVar(IMMU_DIC["home"])
-		pythonBin = cls.getVar(IMMU_DIC["python_bin"])
-		fullProgram = f'{pythonBin} {os.path.join(immuHome, "predict_immunogenicity.py")}'
+		immuHome, immuAct = cls.getVar(IMMU_DIC["home"]), cls.getVar(IMMU_DIC["activation"])
+		fullProgram = f'{immuAct} && python {os.path.join(immuHome, "predict_immunogenicity.py")}'
 		if not popen:
 			protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
 		else:
