@@ -34,7 +34,7 @@ from pwchem.objects import Sequence, SequenceROI, SetOfSequenceROIs
 
 from .. import Plugin as iedbPlugin
 from ..constants import MHCII_alleles_dic
-from ..utils import getAllMHCIIAlleles, matchAllelesToMethod
+from ..utils import getAllMHCIIAlleles, matchAllelesToMethod, sanitizeAttrName
 
 SEQ, SEQROIS = 0, 1
 RANK, SCORE, TOPP, NTOP = 0, 1, 2, 3
@@ -157,6 +157,7 @@ class ProtMHCIIPrediction(EMProtocol):
     inpSeq = self.inputSequence.get()
     outROIs = SetOfSequenceROIs(filename=self._getPath('sequenceROIs.sqlite'))
     method = f"MHCII_{self.getEnumText('method')}"
+    attrName = sanitizeAttrName(method)
 
     if self.inputSource.get() == SEQ:
       epiDic, epitopesList = epiDic['1'], []
@@ -175,7 +176,7 @@ class ProtMHCIIPrediction(EMProtocol):
         seqROI._allelesMHCII = params.String('/'.join(alleles))
         seqROI._epitopeType = params.String('MHC-II')
         seqROI._source = params.String(method)
-        setattr(seqROI, method, params.Float(score))
+        setattr(seqROI, attrName, params.Float(score))
         outROIs.append(seqROI)
 
     else:
@@ -198,7 +199,7 @@ class ProtMHCIIPrediction(EMProtocol):
         allele, score = '/'.join(curAlleles), min(curScores) if curScores else 0
         curROI._allelesMHCII = params.String(allele)
         curROI._sourceMHCII = params.String(method)
-        setattr(curROI, method, params.Float(score))
+        setattr(curROI, attrName, params.Float(score))
         outROIs.append(curROI)
 
     if len(outROIs) > 0:
@@ -232,12 +233,16 @@ class ProtMHCIIPrediction(EMProtocol):
     :return: list of epitopes described as [ ((idx, epitopeStr), alleles, score), ... ]
     '''
     allEpitopes = []
-    key, alleles, score = (None, None), set([]), 0 if self.selType == 1 else 100
+    # For selType==SCORE (higher raw score is better, e.g. Sturniolo, which reports scores well
+    # below 0), the sentinel must start below any real score; a sentinel of 0 left `key` at its
+    # initial (None, None) whenever every candidate in a core scored <= 0, crashing the caller.
+    higherIsBetter = self.selType.get() == 1
+    key, alleles, score = (None, None), set([]), float('-inf') if higherIsBetter else float('inf')
     for newKey in coreDic:
       for (newAlleles, newScore) in coreDic[newKey]:
         if merge:
           alleles.add(newAlleles)
-          if (newScore > score and self.selType == 1) or (newScore < score and self.selType != 1):
+          if (newScore > score and higherIsBetter) or (newScore < score and not higherIsBetter):
             score, key = newScore, newKey
         else:
           allEpitopes.append((newKey, newAlleles, newScore))
@@ -251,10 +256,11 @@ class ProtMHCIIPrediction(EMProtocol):
     :return: list of non-duplicated epitopes as [ ((idx, epitopeStr), alleles, score), ... ]
     '''
     uniEpitopes = {}
+    higherIsBetter = self.selType.get() == 1
     for (key, newAlleles, newScore) in epitopeList:
        if key in uniEpitopes:
          alleles, score = uniEpitopes[key]
-         newScore = newScore if (newScore > score and self.selType == 1) or (newScore < score and self.selType != 1) \
+         newScore = newScore if (newScore > score and higherIsBetter) or (newScore < score and not higherIsBetter) \
            else score
          newAlleles += alleles
 

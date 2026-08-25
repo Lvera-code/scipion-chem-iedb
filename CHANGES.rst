@@ -18,6 +18,21 @@ CHANGES
   "..., UniProt P0DTC9") made every downstream parser (``parseResults``, ``parseResultsLabel``,
   ``parseResultsWindowVote``) crash on a naive ``line.split(',')``. Switched all three to
   ``line.rsplit(',', 3)``, which is immune to commas anywhere before the fixed 3 trailing columns.
+- ``ProtMHCIIPrediction.mergeCoreData`` initialized its "best score so far" sentinel to 0 for the
+  Score selection type, on the assumption that a real score would eventually exceed it; methods
+  that report negative or zero raw scores for large parts of the peptide space (e.g. Sturniolo)
+  could leave every core's best-epitope key at its initial ``(None, None)``, crashing
+  ``createOutputStep`` with ``TypeError: object of type 'NoneType' has no len()``. The sentinel is
+  now ``+/-inf`` depending on the actual comparison direction, and ``mergeAllelesEpitopes`` was
+  cleaned up the same way for consistency.
+- Both ``ProtMHCIPrediction`` and ``ProtMHCIIPrediction`` used the human-readable method label
+  (e.g. ``MHCI_SMM-1.0``, dot included) as a dynamic output-object attribute name; pyworkflow's
+  sqlite mapper reads a dot in a persisted attribute name as a nested-attribute separator, silently
+  corrupting the object the next time it is loaded from disk (as happens whenever its ROIs are fed
+  into a later protocol, e.g. Population Coverage) with ``KeyError`` on the truncated attribute
+  name. Added ``sanitizeAttrName`` (replaces every non-alphanumeric character with ``_``) and use
+  it for the attribute name specifically, while the human-readable label is kept everywhere it is
+  only stored as a value.
 - ``getDefaultDir`` resolved a package's home directory by a bare substring match against the
   ``EM_ROOT`` directory listing; since ``mhc_i`` is itself a substring of ``mhc_ii``, this could
   silently resolve MHC-I's home to the MHC-II install directory (or vice versa) depending on

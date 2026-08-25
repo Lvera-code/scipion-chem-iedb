@@ -25,9 +25,18 @@
 # **************************************************************************
 
 import os
+import re
 
 from iedb import Plugin
 from iedb.constants import POP_DIC
+
+def sanitizeAttrName(name):
+  '''pyworkflow's sqlite mapper reads a dot in a persisted object's attribute name as a nested
+  attribute separator; a dynamic attribute name built from a method label containing a version
+  number (e.g. "MHCI_SMM-1.0") silently corrupts the object on the next reload from disk. Replace
+  any character that is not alphanumeric or an underscore before using a label as an attribute
+  name (the human-readable label itself is kept intact wherever it is only stored as a value).'''
+  return re.sub(r'\W', '_', name)
 
 def getAllelesFile(mhc, method):
   return Plugin.getPluginHome(f'constants/alleles-{mhc}/{method.lower()}_alleles.txt')

@@ -32,7 +32,7 @@ from pwchem.objects import Sequence, SequenceROI, SetOfSequenceROIs
 
 from .. import Plugin as iedbPlugin
 from ..constants import MHCI_alleles_dic
-from ..utils import getAllMHCIAlleles
+from ..utils import getAllMHCIAlleles, sanitizeAttrName
 from ..protocols.protocol_mhc_ii_predict import ProtMHCIIPrediction
 
 SEQ, SEQROIS = 0, 1
@@ -129,6 +129,7 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
     inpSeq = self.inputSequence.get()
     outROIs = SetOfSequenceROIs(filename=self._getPath('sequenceROIs.sqlite'))
     method = f"MHCI_{self.getEnumText('method')}"
+    attrName = sanitizeAttrName(method)
 
     if self.inputSource.get() == SEQ:
       epiDic = epiDic['1']
@@ -143,7 +144,7 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
             seqROI._allelesMHCI = params.String(allele)
             seqROI._epitopeType = params.String('MHC-I')
             seqROI._source = params.String(method)
-            setattr(seqROI, method, params.Float(score))
+            setattr(seqROI, attrName, params.Float(score))
 
             outROIs.append(seqROI)
         else:
@@ -153,7 +154,7 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
           seqROI._allelesMHCI = params.String(allele)
           seqROI._epitopeType = params.String('MHC-I')
           seqROI._source = params.String(method)
-          setattr(seqROI, method, params.Float(score))
+          setattr(seqROI, attrName, params.Float(score))
 
           outROIs.append(seqROI)
 
@@ -175,7 +176,7 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
         allele, score = '/'.join(curAlleles), min(curScores) if curScores else 0
         curROI._allelesMHCI = params.String(allele)
         curROI._sourceMHCI = params.String(method)
-        setattr(curROI, method, params.Float(score))
+        setattr(curROI, attrName, params.Float(score))
         outROIs.append(curROI)
 
     if len(outROIs) > 0:
