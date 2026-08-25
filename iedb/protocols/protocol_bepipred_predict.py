@@ -175,7 +175,10 @@ class ProtBepiPredPrediction(ProtMHCIIPrediction):
     with open(os.path.join(oDir, 'raw_output.csv')) as f:
       f.readline()
       for line in f:
-        protId, res, score3D, scoreLinear = line.split(',')
+        # rsplit, not split: BepiPred writes the sequence name+description verbatim as the
+        # first field, and a comma in the description (e.g. "..., UniProt P0DTC9") would
+        # otherwise be mistaken for a column separator.
+        protId, res, score3D, scoreLinear = line.rsplit(',', 3)
         scores += [float(scoreLinear) if self.linearEp.get() else float(score3D)]
 
     roiScores = {}
@@ -201,7 +204,8 @@ class ProtBepiPredPrediction(ProtMHCIIPrediction):
     with open(os.path.join(oDir, 'raw_output.csv')) as f:
       f.readline()
       for line in f:
-        protId, res, score3D, scoreLinear = line.split(',')
+        # rsplit: see parseResultsLabel() above, same comma-in-description issue.
+        protId, res, score3D, scoreLinear = line.rsplit(',', 3)
         score = scoreLinear if self.linearEp.get() else score3D
         if protId not in epiDic:
           epiDic[protId] = {}
@@ -257,7 +261,8 @@ class ProtBepiPredPrediction(ProtMHCIIPrediction):
     with open(os.path.join(oDir, 'raw_output.csv')) as f:
       f.readline()
       for line in f:
-        protId, res, score3D, scoreLinear = line.split(',')
+        # rsplit: see parseResultsLabel() above, same comma-in-description issue.
+        protId, res, score3D, scoreLinear = line.rsplit(',', 3)
         score = float(scoreLinear if self.linearEp.get() else score3D)
         perProtein.setdefault(protId, {'residues': [], 'scores': []})
         perProtein[protId]['residues'].append(res)

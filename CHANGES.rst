@@ -13,6 +13,11 @@ CHANGES
 - ``validateInstallation`` only ever checked the BepiPred install, silently passing even when
   another package was never configured; each protocol now validates only the single package it
   actually needs, and the plugin-wide check (used by the plugin manager) validates all six.
+- BepiPred writes the imported sequence's name and description verbatim, unescaped, as the first
+  column of ``raw_output.csv``; a comma anywhere in the description (a common thing to have, e.g.
+  "..., UniProt P0DTC9") made every downstream parser (``parseResults``, ``parseResultsLabel``,
+  ``parseResultsWindowVote``) crash on a naive ``line.split(',')``. Switched all three to
+  ``line.rsplit(',', 3)``, which is immune to commas anywhere before the fixed 3 trailing columns.
 - ``getDefaultDir`` resolved a package's home directory by a bare substring match against the
   ``EM_ROOT`` directory listing; since ``mhc_i`` is itself a substring of ``mhc_ii``, this could
   silently resolve MHC-I's home to the MHC-II install directory (or vice versa) depending on
