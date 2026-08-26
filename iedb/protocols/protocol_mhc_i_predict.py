@@ -244,9 +244,9 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
     for row in resAr:
       allele, seqId, pos, peptide = row[0], row[1], row[2], row[5]
       key = (int(pos), peptide)
-      if not seqId in epiDic:
+      if seqId not in epiDic:
         epiDic[seqId] = {}
-      if not key in epiDic[seqId]:
+      if key not in epiDic[seqId]:
         epiDic[seqId][key] = {}
 
       rankIdx = self.getRankIdx()

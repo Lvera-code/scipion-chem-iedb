@@ -331,11 +331,11 @@ class ProtMHCIIPrediction(EMProtocol):
       else:
         allele, seqId, pos, core, peptide = row[0], row[1], row[2], row[5], row[6]
       key = (int(pos), peptide)
-      if not seqId in epiDic:
+      if seqId not in epiDic:
         epiDic[seqId] = {}
-      if not core in epiDic[seqId]:
+      if core not in epiDic[seqId]:
         epiDic[seqId][core] = {}
-      if not key in epiDic[seqId][core]:
+      if key not in epiDic[seqId][core]:
         epiDic[seqId][core][key] = []
 
       rankIdx = self.getRankIdx()
