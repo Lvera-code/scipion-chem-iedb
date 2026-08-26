@@ -286,7 +286,7 @@ class Plugin(pwchemPlugin):
 		returned."""
 		mPaths = cls.validatePackageInstallation(IMMU_DIC, 'predict_immunogenicity.py')
 		if not mPaths and not cls.checkCallEnv(IMMU_DIC):
-			mPaths.append(f"Activation of the Immunogenicity environment failed.\n")
+			mPaths.append("Activation of the Immunogenicity environment failed.\n")
 		return mPaths
 
 	@classmethod

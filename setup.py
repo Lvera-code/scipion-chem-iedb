@@ -22,7 +22,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='scipion-chem-iedb',
-    version='3.0.0',
+    version='3.0.1',
     description='Scipion framework plugin for the use of iedb for T-cell epitope prediction',
     long_description=long_description,
     url='https://github.com/scipion-chem/scipion-chem-iedb',

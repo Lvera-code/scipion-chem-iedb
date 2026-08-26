@@ -38,6 +38,7 @@ from ..protocols.protocol_mhc_ii_predict import ProtMHCIIPrediction
 class ProtBepiPredPrediction(ProtMHCIIPrediction):
   """Run a prediction using BepiPred to extract B-cell epitopes"""
   _label = 'bepipred prediction'
+  RAW_OUTPUT_FILENAME = 'raw_output.csv'
 
   def __init__(self, **kwargs):
     EMProtocol.__init__(self, **kwargs)
@@ -141,8 +142,8 @@ class ProtBepiPredPrediction(ProtMHCIIPrediction):
                                    softThres=self.softThres.get(), softN=self.nSoft.get())
       else:
         minLen = self.minSize.get() if self.setSize.get() else 1
-        epiDic = self.parseResultsWindowVote(min_length=minLen, threshold=self.avThres.get(),
-                                             window_size=self.windowSize.get(), max_gap_residues=self.maxGapResidues.get())
+        epiDic = self.parseResultsWindowVote(minLength=minLen, threshold=self.avThres.get(),
+                                             windowSize=self.windowSize.get(), maxGapResidues=self.maxGapResidues.get())
 
       inpSeq = self.inputSequence.get()
       for idxI, (epitope, score) in epiDic[list(epiDic.keys())[0]].items():
@@ -172,13 +173,13 @@ class ProtBepiPredPrediction(ProtMHCIIPrediction):
     input ROIs: {roiObjId: avScore}'''
     oDir = self._getExtraPath()
     scores = []
-    with open(os.path.join(oDir, 'raw_output.csv')) as f:
+    with open(os.path.join(oDir, self.RAW_OUTPUT_FILENAME)) as f:
       f.readline()
       for line in f:
         # rsplit, not split: BepiPred writes the sequence name+description verbatim as the
         # first field, and a comma in the description (e.g. "..., UniProt P0DTC9") would
         # otherwise be mistaken for a column separator.
-        protId, res, score3D, scoreLinear = line.rsplit(',', 3)
+        _, _, score3D, scoreLinear = line.rsplit(',', 3)
         scores += [float(scoreLinear) if self.linearEp.get() else float(score3D)]
 
     roiScores = {}
@@ -201,7 +202,7 @@ class ProtBepiPredPrediction(ProtMHCIIPrediction):
 
     epiDic = {}
     curEp, iniEp = '', -1
-    with open(os.path.join(oDir, 'raw_output.csv')) as f:
+    with open(os.path.join(oDir, self.RAW_OUTPUT_FILENAME)) as f:
       f.readline()
       for line in f:
         # rsplit: see parseResultsLabel() above, same comma-in-description issue.
@@ -247,18 +248,29 @@ class ProtBepiPredPrediction(ProtMHCIIPrediction):
       epiDic[protId][iniEp] = [curEp, sum(scores) / len(scores)]
     return epiDic
 
-  def parseResultsWindowVote(self, min_length, threshold=0.1512, window_size=9, max_gap_residues=2):
+  def parseResultsWindowVote(self, minLength, threshold=0.1512, windowSize=9, maxGapResidues=2):
     '''Alternative to parseResults(): instead of a single left-to-right greedy scan with a trailing
     soft threshold, slide a fixed-size window over the per-residue scores. A window passes if at most
-    max_gap_residues of its residues are below threshold, and every residue covered by a passing window
-    is marked positive. Passing residues are then merged into contiguous regions of at least min_length
+    maxGapResidues of its residues are below threshold, and every residue covered by a passing window
+    is marked positive. Passing residues are then merged into contiguous regions of at least minLength
     residues. Returns the same {protId: {position: [epitope, meanScore]}} shape as parseResults(), so
     createOutputStep() does not need to know which mode produced it.
     '''
-    oDir = self._getExtraPath()
+    perProtein = self._readRawOutputByProtein()
 
+    epiDic = {}
+    for protId, data in perProtein.items():
+      residues, scores = data['residues'], data['scores']
+      passing = self._computeWindowVotePassing(scores, threshold, windowSize, maxGapResidues)
+      epiDic[protId] = self._mergePassingRegions(residues, scores, passing, minLength)
+
+    return epiDic
+
+  def _readRawOutputByProtein(self):
+    '''Reads raw_output.csv and groups the per-residue scores by protein: {protId: {'residues': [...], 'scores': [...]}}'''
+    oDir = self._getExtraPath()
     perProtein = {}
-    with open(os.path.join(oDir, 'raw_output.csv')) as f:
+    with open(os.path.join(oDir, self.RAW_OUTPUT_FILENAME)) as f:
       f.readline()
       for line in f:
         # rsplit: see parseResultsLabel() above, same comma-in-description issue.
@@ -267,35 +279,41 @@ class ProtBepiPredPrediction(ProtMHCIIPrediction):
         perProtein.setdefault(protId, {'residues': [], 'scores': []})
         perProtein[protId]['residues'].append(res)
         perProtein[protId]['scores'].append(score)
+    return perProtein
 
-    epiDic = {}
-    for protId, data in perProtein.items():
-      residues, scores = data['residues'], data['scores']
-      n = len(residues)
-      passing = [False] * n
-      for i in range(n - window_size + 1):
-        windowScores = scores[i:i + window_size]
-        nBelow = sum(1 for s in windowScores if s < threshold)
-        if nBelow <= max_gap_residues:
-          for j in range(i, i + window_size):
-            passing[j] = True
+  @staticmethod
+  def _computeWindowVotePassing(scores, threshold, windowSize, maxGapResidues):
+    '''Slides a fixed-size window over scores, marking every residue covered by a passing window
+    (at most maxGapResidues below threshold) as True.'''
+    n = len(scores)
+    passing = [False] * n
+    for i in range(n - windowSize + 1):
+      nBelow = sum(1 for s in scores[i:i + windowSize] if s < threshold)
+      if nBelow <= maxGapResidues:
+        for j in range(i, i + windowSize):
+          passing[j] = True
+    return passing
 
-      epiDic[protId] = {}
-      start = None
-      for i in range(n + 1):
-        if i < n and passing[i]:
-          if start is None:
-            start = i
-        elif start is not None:
-          length = i - start
-          if length >= min_length:
-            epitope = ''.join(residues[start:i])
-            meanScore = sum(scores[start:i]) / length
-            # 1-indexed protein position, matching parseResults()
-            epiDic[protId][start + 1] = [epitope, meanScore]
-          start = None
-
-    return epiDic
+  @staticmethod
+  def _mergePassingRegions(residues, scores, passing, minLength):
+    '''Merges contiguous passing residues into regions of at least minLength, returning
+    {position: [epitope, meanScore]} (1-indexed protein position, matching parseResults()).'''
+    n = len(residues)
+    protEpitopes = {}
+    start = None
+    for i in range(n + 1):
+      if i < n and passing[i]:
+        if start is None:
+          start = i
+        continue
+      if start is not None:
+        length = i - start
+        if length >= minLength:
+          epitope = ''.join(residues[start:i])
+          meanScore = sum(scores[start:i]) / length
+          protEpitopes[start + 1] = [epitope, meanScore]
+        start = None
+    return protEpitopes
 
   @classmethod
   def validateInstallation(cls):

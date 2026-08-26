@@ -2,6 +2,12 @@
 CHANGES
 =========
 
+3.0.1
+=====
+- Code-quality cleanup (naming convention, duplicated literal, unused variables,
+  cognitive complexity) on the BepiPred sliding-window extraction mode and the
+  MHC-I/MHC-II result parsers, no behavioral change.
+
 3.0.0
 =====
 - Current feature set: BepiPred-3.0 linear B-cell epitope prediction (absorbed from the formerly
