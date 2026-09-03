@@ -40,6 +40,10 @@ class ProtMHCPopulationCoverage(EMProtocol):
   """Calculates the population coverage of a series of MHC epitopes"""
   _label = 'mhc population coverage'
 
+  @classmethod
+  def validateInstallation(cls):
+    return iedbPlugin.validateCoverageInstallation()
+
   def __init__(self, **kwargs):
     EMProtocol.__init__(self, **kwargs)
     self.stepsExecutionMode = params.STEPS_PARALLEL

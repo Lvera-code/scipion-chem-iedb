@@ -32,7 +32,7 @@ from pwchem.objects import Sequence, SequenceROI, SetOfSequenceROIs
 
 from .. import Plugin as iedbPlugin
 from ..constants import MHCI_alleles_dic
-from ..utils import getAllMHCIAlleles
+from ..utils import getAllMHCIAlleles, sanitizeAttrName
 from ..protocols.protocol_mhc_ii_predict import ProtMHCIIPrediction
 
 SEQ, SEQROIS = 0, 1
@@ -46,9 +46,13 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
   MINLEN, MAXLEN = 8, 14
   selMap = {RANK: 'rank', IC50: 'ic50', TOPP: 'topPerc', NTOP: 'topN'}
 
+  @classmethod
+  def validateInstallation(cls):
+    return iedbPlugin.validateMHCIInstallation()
+
   _mhciMethodsDic = {'IEDB recommended': 'netmhcpan', 'Consensus-2.18': 'consensus',
                      'NetMHC_Cons': 'netmhccons', 'ANN-4.0': 'ann', 'SMMPMBEC-1.0': 'smmpmbec', 'SMM-1.0': 'smm',
-                     'Combinatorial Library-1.0': 'comblib_sidney2008', 'PickPocket-1.1': 'pìckpocket'}
+                     'Combinatorial Library-1.0': 'comblib_sidney2008', 'PickPocket-1.1': 'pickpocket'}
   _species = ['Chimpanzee', 'Cow', 'Gorilla', 'Human', 'Macaque', 'Mouse', 'Pig']
   _alleleGroups = ['Frequent (>1%)', 'Representative HLA supertypes', 'Most frequent A, B', 'Custom']
   _selTypes = ['Percentile rank', 'IC50', 'Top x%', 'Top x']
@@ -107,10 +111,7 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
     inFile = self.writeInputFasta()
     oFile = self.getMHCOutputFile()
 
-    method = self._mhciMethodsDic[self.getEnumText('method')]
-    if self.method.get() == 0:
-        pMode = 'ba' if self.predMode.get() == 0 else 'el'
-        method += f'_{pMode}'
+    method = self.getResolvedMethod()
     selAlleles = self.getSelectedAlleles()
     lenList = self.getLenghts()
 
@@ -128,6 +129,7 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
     inpSeq = self.inputSequence.get()
     outROIs = SetOfSequenceROIs(filename=self._getPath('sequenceROIs.sqlite'))
     method = f"MHCI_{self.getEnumText('method')}"
+    attrName = sanitizeAttrName(method)
 
     if self.inputSource.get() == SEQ:
       epiDic = epiDic['1']
@@ -142,7 +144,7 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
             seqROI._allelesMHCI = params.String(allele)
             seqROI._epitopeType = params.String('MHC-I')
             seqROI._source = params.String(method)
-            setattr(seqROI, method, params.Float(score))
+            setattr(seqROI, attrName, params.Float(score))
 
             outROIs.append(seqROI)
         else:
@@ -152,7 +154,7 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
           seqROI._allelesMHCI = params.String(allele)
           seqROI._epitopeType = params.String('MHC-I')
           seqROI._source = params.String(method)
-          setattr(seqROI, method, params.Float(score))
+          setattr(seqROI, attrName, params.Float(score))
 
           outROIs.append(seqROI)
 
@@ -174,7 +176,7 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
         allele, score = '/'.join(curAlleles), min(curScores) if curScores else 0
         curROI._allelesMHCI = params.String(allele)
         curROI._sourceMHCI = params.String(method)
-        setattr(curROI, method, params.Float(score))
+        setattr(curROI, attrName, params.Float(score))
         outROIs.append(curROI)
 
     if len(outROIs) > 0:
@@ -183,8 +185,7 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
   ##################### UTILS #####################
 
   def getAvailableAlleles(self):
-    methKey = self._mhciMethodsDic[self.getEnumText('method')]
-    alleDic = getAllMHCIAlleles(methKey, self.getEnumText('specie'))
+    alleDic = getAllMHCIAlleles(self.getResolvedMethod(), self.getEnumText('specie'))
     return list(alleDic.keys())
 
   def getSelectedAlleles(self):
@@ -200,6 +201,10 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
     length lists necessary to run predict_binding.py'''
     fAL, fLL = [], []
     for allele in alList:
+      if allele not in alDic:
+        # Not every method supports every allele (e.g. comblib_sidney2008 only covers 14 of them);
+        # skip rather than crash.
+        continue
       for length in lenList:
         if str(length) in alDic[allele]:
           fAL.append(allele), fLL.append(str(length))
@@ -208,25 +213,49 @@ class ProtMHCIPrediction(ProtMHCIIPrediction):
   def getMHCOutputFile(self):
     return os.path.abspath(self._getExtraPath('mhc-I_results.tsv'))
 
+  def getResolvedMethod(self):
+    '''The exact method string passed to predict_binding.py, including the ba/el suffix for the
+    default (netmhcpan) method.'''
+    method = self._mhciMethodsDic[self.getEnumText('method')]
+    if self.method.get() == 0:
+      pMode = 'ba' if self.predMode.get() == 0 else 'el'
+      method += f'_{pMode}'
+    return method
+
   def getRankIdx(self):
-    return 8 if self.selType.get() == IC50 else 9
+    '''predict_binding.py's own output has a different number of columns depending on the method:
+    netmhcpan (10 cols, includes core/icore) and the single-value methods -- ann, smm, smmpmbec,
+    comblib_sidney2008, pickpocket (8 cols) -- both always have rank as the very last column and
+    ic50 (or, for comblib_sidney2008, a "score") as the second to last, regardless of the exact
+    column count, so negative indices work for all of them. consensus is structurally different
+    (13 columns, no single ic50 value, only per-submethod ones) and needs its own column.'''
+    if self.getResolvedMethod() == 'consensus':
+      return 6 if self.selType.get() != IC50 else None
+    return -1 if self.selType.get() != IC50 else -2
 
   def parseResults(self, oFile):
     '''Parse the results in the raw_output.tsv file generated by TepiTools and returns a dictionary
-    as {seq_id: {(position, epitopeString): {allele: score}}}
+    as {seqId: {(position, epitopeString): {allele: score}}}
     '''
     resAr = self.getResultsArray(oFile)
 
     # Build the output from the selection
     epiDic = {}
     for row in resAr:
-      allele, seq_id, pos, _, _, peptide, _, _, ic50, rank = row[:10]
+      allele, seqId, pos, peptide = row[0], row[1], row[2], row[5]
       key = (int(pos), peptide)
-      if not seq_id in epiDic:
-        epiDic[seq_id] = {}
-      if not key in epiDic[seq_id]:
-        epiDic[seq_id][key] = {}
+      if seqId not in epiDic:
+        epiDic[seqId] = {}
+      if key not in epiDic[seqId]:
+        epiDic[seqId][key] = {}
 
       rankIdx = self.getRankIdx()
-      epiDic[seq_id][key][allele] = float(row[rankIdx])
+      epiDic[seqId][key][allele] = float(row[rankIdx])
     return epiDic
+
+  def _validate(self):
+    vals = super()._validate()
+    if self.getResolvedMethod() == 'consensus' and self.selType.get() == IC50:
+      vals.append('The Consensus method does not report a single IC50 value (only one per '
+                   'submethod); select a different Selection type or method.')
+    return vals

@@ -75,6 +75,20 @@ class TestBepiPredPrediction(BaseImportSeq):
 		self._waitOutput(protBepiPred, 'outputROIs', sleepTime=10)
 		assertHandle(self.assertIsNotNone, getattr(protBepiPred, 'outputROIs', None))
 
+class TestBepiPredPredictionWindowVote(TestBepiPredPrediction):
+	'''Same as TestBepiPredPrediction but exercising the gap-tolerant sliding window extraction
+	mode (extractionMode=1), the generic alternative to the default threshold + soft extension
+	algorithm.'''
+
+	def _runBepiPredPrediction(self):
+		protBepiPred = self.newProtocol(ProtBepiPredPrediction, extractionMode=1)
+
+		protBepiPred.inputSequence.set(self.protImportSeq)
+		protBepiPred.inputSequence.setExtended('outputSequence')
+
+		self.proj.launchProtocol(protBepiPred, wait=False)
+		return protBepiPred
+
 class TestMHCIPrediction(BaseImportSeq):
 	def _runMHCIPrediction(self):
 		protMHCI = self.newProtocol(ProtMHCIPrediction)
@@ -104,6 +118,70 @@ class TestMHCIIPrediction(BaseImportSeq):
 		protMHCII = self._runMHCIIPrediction()
 		self._waitOutput(protMHCII, 'outputROIs', sleepTime=10)
 		assertHandle(self.assertIsNotNone, getattr(protMHCII, 'outputROIs', None))
+
+class TestMHCLabelROIs(BaseImportSeq):
+	'''Exercises the "label an existing set of sequence ROIs" input mode (inputSource=1) of
+	ProtMHCIPrediction/ProtMHCIIPrediction, instead of the default "predict over a full sequence"
+	mode covered by TestMHCIPrediction/TestMHCIIPrediction.'''
+
+	def _runBepiPredPrediction(self):
+		protBepiPred = self.newProtocol(ProtBepiPredPrediction)
+
+		protBepiPred.inputSequence.set(self.protImportSeq)
+		protBepiPred.inputSequence.setExtended('outputSequence')
+
+		self.proj.launchProtocol(protBepiPred, wait=False)
+		return protBepiPred
+
+	def _runBepiPredLabel(self, protROIs):
+		protBepiPredLabel = self.newProtocol(ProtBepiPredPrediction, inputSource=1)
+
+		protBepiPredLabel.inputSequenceROIs.set(protROIs)
+		protBepiPredLabel.inputSequenceROIs.setExtended('outputROIs')
+
+		self.proj.launchProtocol(protBepiPredLabel, wait=False)
+		return protBepiPredLabel
+
+	def _runMHCILabel(self, protROIs):
+		protMHCI = self.newProtocol(ProtMHCIPrediction, inputSource=1)
+
+		protMHCI.inputSequenceROIs.set(protROIs)
+		protMHCI.inputSequenceROIs.setExtended('outputROIs')
+
+		self.proj.launchProtocol(protMHCI, wait=False)
+		return protMHCI
+
+	def _runMHCIILabel(self, protROIs):
+		protMHCII = self.newProtocol(ProtMHCIIPrediction, inputSource=1)
+
+		protMHCII.inputSequenceROIs.set(protROIs)
+		protMHCII.inputSequenceROIs.setExtended('outputROIs')
+
+		self.proj.launchProtocol(protMHCII, wait=False)
+		return protMHCII
+
+	def test(self):
+		protBepiPred = self._runBepiPredPrediction()
+		self._waitOutput(protBepiPred, 'outputROIs', sleepTime=10)
+		nInputROIs = len(protBepiPred.outputROIs)
+
+		protMHCI = self._runMHCILabel(protBepiPred)
+		self._waitOutput(protMHCI, 'outputROIs', sleepTime=10)
+		assertHandle(self.assertIsNotNone, getattr(protMHCI, 'outputROIs', None))
+		assertHandle(self.assertEqual, len(protMHCI.outputROIs), nInputROIs)
+		assertHandle(self.assertTrue, all(hasattr(roi, '_allelesMHCI') for roi in protMHCI.outputROIs))
+
+		protMHCII = self._runMHCIILabel(protBepiPred)
+		self._waitOutput(protMHCII, 'outputROIs', sleepTime=10)
+		assertHandle(self.assertIsNotNone, getattr(protMHCII, 'outputROIs', None))
+		assertHandle(self.assertEqual, len(protMHCII.outputROIs), nInputROIs)
+		assertHandle(self.assertTrue, all(hasattr(roi, '_allelesMHCII') for roi in protMHCII.outputROIs))
+
+		protBepiPredLabel = self._runBepiPredLabel(protMHCI)
+		self._waitOutput(protBepiPredLabel, 'outputROIs', sleepTime=10)
+		assertHandle(self.assertIsNotNone, getattr(protBepiPredLabel, 'outputROIs', None))
+		assertHandle(self.assertEqual, len(protBepiPredLabel.outputROIs), len(protMHCI.outputROIs))
+		assertHandle(self.assertTrue, all(hasattr(roi, 'BepiPred') for roi in protBepiPredLabel.outputROIs))
 
 class TestImmunogenicityPrediction(TestMHCIPrediction):
 	def _runImmunogenicityPrediction(self, protROIs):

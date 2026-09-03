@@ -2,20 +2,22 @@
 IEDB scipion plugin
 ================================
 
-**Documentation under development, sorry for the inconvenience**
-
 Scipion framework plugin for the use of tools provided by IEDB epitope tools.
-This plugin allows to use programs from the IEDB website for B-cell, MHC-I, MHC-II epitope predictions and population
-coverage within the Scipion framework. **You need to download the IEDB files
-before installing the plugin, see section "Download IEDB files" for details**.
+This plugin allows to use programs from the IEDB website for B-cell (BepiPred), MHC-I, MHC-II and
+conformational (ElliPro) epitope predictions, class-I immunogenicity and population coverage within
+the Scipion framework. **You need to download the IEDB files before installing the plugin, see
+section "Download IEDB files" for details**.
 
 ================================
 Download IEDB files
 ================================
 
-IEDB contains several software packages for epitope prediction and other tools meant for academic use only.
-You can download these packages in http://tools.iedb.org/tepitool/download/ .
-Now, specific instructions for each of the packages will be provided.
+IEDB contains several software packages for epitope prediction and other tools, distributed under
+their own academic-use license terms. BepiPred is a separate DTU Health Tech service and must be
+requested through the form linked below; the MHC-I, MHC-II, population coverage, immunogenicity and
+ElliPro packages are directly downloadable, without any request form, from
+https://downloads.iedb.org/tools/. Now, specific instructions for each of the packages will be
+provided.
 
 |
 
@@ -56,7 +58,7 @@ http://tools.iedb.org/mhci/download/
 Once you obtain the software file (a tar.gz) you have several options to help Scipion finding it:
 
 Option 1) Edit the scipion.conf file and add the variables:
- - MHC-I_TAR = <PathToMhc-ITar> (IEDB_MHC_I-3.1.5.tar.gz)
+ - MHC_I_TAR = <PathToMhc-ITar> (IEDB_MHC_I-3.1.5.tar.gz)
 
 This way, Scipion will untar and move the corresponding files to the scipion/software/em folder and install mhc-i.
 
@@ -64,7 +66,7 @@ Option 2) If you have unzipped the mhc-i tars yourself you can either:
 
 2.1) Move the folder (of the form mhc_i) to the scipion/software/em folder. Scipion will find it there.
 
-2.2) Specify the location of the MHC folder in the scipion.conf file as: MHC-I_HOME = <PathToMhc-I_folder>
+2.2) Specify the location of the MHC folder in the scipion.conf file as: MHC_I_HOME = <PathToMhc-I_folder>
 
 |
 
@@ -78,7 +80,7 @@ http://tools.iedb.org/mhcii/download/
 Once you obtain the software file (a tar.gz) you have several options to help Scipion finding it:
 
 Option 1) Edit the scipion.conf file and add the variables:
- - MHC-II_TAR = <PathToMhc-IITar> (IEDB_MHC_II-3.1.5.tar.gz)
+ - MHC_II_TAR = <PathToMhc-IITar> (IEDB_MHC_II-3.1.11.tar.gz)
 
 This way, Scipion will untar and move the corresponding files to the scipion/software/em folder and install mhc-ii.
 
@@ -86,7 +88,7 @@ Option 2) If you have unzipped the mhc-ii tars yourself you can either:
 
 2.1) Move the folder (of the form mhc_ii) to the scipion/software/em folder. Scipion will find it there.
 
-2.2) Specify the location of the MHC folder in the scipion.conf file as: MHC-II_HOME = <PathToMhc-II_folder>
+2.2) Specify the location of the MHC folder in the scipion.conf file as: MHC_II_HOME = <PathToMhc-II_folder>
 
 |
 
@@ -102,13 +104,57 @@ Once you obtain the software file (a tar.gz) you have several options to help Sc
 Option 1) Edit the scipion.conf file and add the variables:
  - COVERAGE_TAR = <PathToPopCoverageTar> (IEDB_Population_Coverage-3.0.2.tar.gz)
 
-This way, Scipion will untar and move the corresponding files to the scipion/software/em folder and install mhc-ii.
+This way, Scipion will untar and move the corresponding files to the scipion/software/em folder and install population coverage.
 
 Option 2) If you have unzipped the population_coverage tars yourself you can either:
 
 2.1) Move the folder (of the form population_coverage) to the scipion/software/em folder. Scipion will find it there.
 
 2.2) Specify the location of the MHC folder in the scipion.conf file as: COVERAGE_HOME = <PathToPopCoverage_folder>
+
+|
+
+5. **Class-I immunogenicity tool**
+
+The immunogenicity tool contains a collection of python scripts to predict the immunogenicity of a
+peptide-MHC (pMHC) complex. The tar file can be downloaded from
+https://downloads.iedb.org/tools/immunogenicity/.
+
+Once you obtain the software file (a tar.gz) you have several options to help Scipion finding it:
+
+Option 1) Edit the scipion.conf file and add the variable:
+ - IMMUNO_TAR = <PathToImmunogenicityTar> (IEDB_Immunogenicity-1.1.tar.gz)
+
+This way, Scipion will untar and move the corresponding files to the scipion/software/em folder and
+install immunogenicity.
+
+Option 2) If you have unzipped the immunogenicity tar yourself you can either:
+
+2.1) Move the folder (of the form immunogenicity) to the scipion/software/em folder. Scipion will
+find it there.
+
+2.2) Specify the location of the immunogenicity folder in the scipion.conf file as:
+IMMUNO_HOME = <PathToImmunogenicity_folder>
+
+The vendored ``predict_immunogenicity.py`` script is written for Python 2. Scipion creates a
+dedicated ``immunogenicity-1.1`` conda environment for it automatically during installation, so
+no extra manual step is needed. If you want to use your own Python 2 installation instead,
+override the activation command in the scipion.conf file as:
+IMMUNO_ACTIVATION_CMD = <ActivationCommand>.
+
+|
+
+6. **ElliPro tool**
+
+ElliPro is distributed as a single Java jar file and predicts conformational (structural) B-cell
+epitopes from an atomic structure. It can be downloaded from
+https://downloads.iedb.org/tools/ellipro/, and requires a Java runtime to be available.
+
+Once you obtain the jar file, point Scipion at it by editing the scipion.conf file and adding the
+variable:
+ - ELLIPRO_JAR = <PathToElliProJar> (ElliPro.jar)
+
+Scipion will move the jar file into the scipion/software/em folder on install.
 
 
 ===================
@@ -155,7 +201,52 @@ If you want the latest changes and developments, user devel branch.
 
 - **Tests**
 
-To check the installation, simply run the following Scipion test:
+To check the installation, run the Scipion tests. BepiPred requires the separate DTU-licensed
+download described above (see "Download IEDB files"):
+
+.. code-block::
+
+            scipion3 tests iedb.tests.tests.TestBepiPredPrediction
+
+The remaining tests exercise the MHC-I, MHC-II, population coverage, ElliPro and immunogenicity
+protocols. These do not require any license request, only the packages themselves to be downloaded
+and configured as described above (``MHC_I_HOME``/``MHC_I_TAR``, ``MHC_II_HOME``/``MHC_II_TAR``,
+``COVERAGE_HOME``/``COVERAGE_TAR``, ``IMMUNO_HOME``/``IMMUNO_TAR`` and
+``ELLIPRO_HOME``/``ELLIPRO_JAR``):
+
+.. code-block::
+
+            scipion3 tests iedb.tests.tests.TestMHCIPrediction
+            scipion3 tests iedb.tests.tests.TestMHCIIPrediction
+            scipion3 tests iedb.tests.tests.TestImmunogenicityPrediction
+            scipion3 tests iedb.tests.tests.TestMHCPopulationCoverage
+            scipion3 tests iedb.tests.tests.TestElliProPrediction
+
+Additional coverage is available for the "label an existing set of sequence ROIs" input mode
+(``TestMHCLabelROIs``) and for every non-default MHC-I/MHC-II method
+(``iedb.tests.test_alt_methods.TestAlternativeMethods``); run ``scipion3 tests iedb.tests`` to
+execute the full suite at once.
+
+===================
+Protocols provided
+===================
+
+- **BepiPred prediction** (``ProtBepiPredPrediction``): linear B-cell epitope prediction over an
+  input sequence using BepiPred-3.0, exposed as sequence ROIs.
+- **MHC-I prediction** (``ProtMHCIPrediction``): MHC-I epitope prediction over an input sequence
+  (or allele labelling of an existing set of sequence ROIs), using any of the methods bundled in
+  IEDB's ``mhc_i`` package (IEDB-recommended/NetMHCpan, Consensus, NetMHCcons, ANN, SMM, SMMPMBEC,
+  Combinatorial Library, PickPocket). NetMHCcons reproducibly fails inside the vendored ``mhc_i``
+  package itself, independent of input; this is a limitation of that third-party method, not of
+  this protocol.
+- **MHC-II prediction** (``ProtMHCIIPrediction``): MHC-II epitope prediction over an input sequence,
+  using IEDB's ``mhc_ii`` package.
+- **Immunogenicity prediction** (``ProtImmunogenicityPrediction``): scores the immunogenicity of the
+  peptide-MHC (pMHC) complexes produced by the MHC-I protocol over a set of sequence ROIs.
+- **MHC population coverage** (``ProtMHCPopulationCoverage``): calculates population coverage for a
+  set of MHC-I/MHC-II epitopes across selected populations/areas.
+- **ElliPro prediction** (``ProtElliProPrediction``): conformational (structural) B-cell epitope
+  prediction over an input atomic structure, producing both structure and sequence ROIs.
 
 ===============
 Buildbot status

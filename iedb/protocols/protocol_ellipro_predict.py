@@ -41,6 +41,10 @@ class ProtElliProPrediction(EMProtocol):
   """Run a prediction using ElliPro to extract B-cell structural epitopes"""
   _label = 'ellipro prediction'
 
+  @classmethod
+  def validateInstallation(cls):
+    return iedbPlugin.validateElliProInstallation()
+
   def __init__(self, **kwargs):
     EMProtocol.__init__(self, **kwargs)
 

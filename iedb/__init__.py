@@ -73,6 +73,9 @@ class Plugin(pwchemPlugin):
 
 		cls._defineVar(IMMU_DIC['home'], cls.getDefaultDir(IMMU_DIC))
 		cls._defineVar(IMMU_DIC['tar'], None)
+		# The vendored predict_immunogenicity.py is a Python 2 script; installed into its own
+		# conda env (see _addImmunogenicityPackage) so users don't need to build one themselves.
+		cls._defineVar(IMMU_DIC['activation'], cls.getEnvActivationCommand(IMMU_DIC))
 
 	@classmethod
 	def defineBinaries(cls, env):
@@ -222,17 +225,21 @@ class Plugin(pwchemPlugin):
 
 		if immunoHome != emHome:
 			installationCmd += f"mv {immunoHome}/* {emHome} && rm -r {immunoHome} && "
+		# The vendored predict_immunogenicity.py is a Python 2 script; create a dedicated conda
+		# env for it here so users don't need any extra manual step.
+		installationCmd += f"conda create -y -n {cls.getEnvName(IMMU_DIC)} python=2.7 && "
 		installationCmd += f"touch {IMMUNO_INSTALLED}"
 
 		env.addPackage(IMMU_DIC['name'], version=IMMU_DIC['version'],
 									 commands=[(installationCmd, os.path.join(emHome, IMMUNO_INSTALLED))], tar='void.tgz',
-									 default=default, buildDir=os.path.split(immunoHome)[-1])
+									 neededProgs=["conda"], default=default, buildDir=os.path.split(immunoHome)[-1])
 
 
 	@classmethod
-	def validateInstallation(cls):
-		""" Check if the installation of this protocol is correct. Returning an empty list means that the installation
-		is correct and there are not errors. If some errors are found, a list with the error messages will be returned."""
+	def validateBepiPredInstallation(cls):
+		""" Check if the BepiPred installation alone is correct. Returning an empty list means that the
+		installation is correct and there are not errors. If some errors are found, a list with the error
+		messages will be returned."""
 		mPaths = []
 		if not cls.checkVarPath(BEPIPRED_DIC, 'home'):
 			mPaths.append(f"Path of BepiPred home (folder like BepiPred3_src) does not exist.\n"
@@ -240,9 +247,71 @@ class Plugin(pwchemPlugin):
 										f"or define the location of the raw dowloaded ZIP file (like bepipred-3.0b.src.zip) as "
 										f"{BEPIPRED_DIC['zip']} = <pathToBepiPredZip>.\nAlternatively, you can move the home folder into "
 										f"{emConfig.EM_ROOT} keeping the '{BEPIPRED_DIC['pattern']}' pattern.")
-
-		if not cls.checkCallEnv(BEPIPRED_DIC):
+		elif not cls.checkCallEnv(BEPIPRED_DIC):
 			mPaths.append(f"Activation of the BepiPred environment failed.\n")
+		return mPaths
+
+	@classmethod
+	def validatePackageInstallation(cls, softDic, progFile):
+		""" Check if a single manually-installed IEDB package (MHC-I, MHC-II, population coverage or
+		immunogenicity) is correct. Returning an empty list means that the installation is correct and
+		there are not errors. If some errors are found, a list with the error messages will be returned."""
+		mPaths = []
+		if not cls.checkVarPath(softDic, 'home') or \
+				not os.path.exists(os.path.join(cls.getVar(softDic['home']), progFile)):
+			mPaths.append(f"Path of {softDic['name']} home does not exist or is incomplete.\n"
+										f"You must either define it in the scipion.conf (as {softDic['home']} = <pathTo{softDic['name']}Folder>) "
+										f"or define the location of the raw downloaded tar file as "
+										f"{softDic['tar']} = <pathTo{softDic['name']}Tar>.\nAlternatively, you can move the home folder into "
+										f"{emConfig.EM_ROOT} keeping the '{softDic['pattern']}' pattern.")
+		return mPaths
+
+	@classmethod
+	def validateMHCIInstallation(cls):
+		return cls.validatePackageInstallation(MHCI_DIC, 'src/predict_binding.py')
+
+	@classmethod
+	def validateMHCIIInstallation(cls):
+		return cls.validatePackageInstallation(MHCII_DIC, 'mhc_II_binding.py')
+
+	@classmethod
+	def validateCoverageInstallation(cls):
+		return cls.validatePackageInstallation(COVE_DIC, 'calculate_population_coverage.py')
+
+	@classmethod
+	def validateImmunogenicityInstallation(cls):
+		""" Check if the Immunogenicity installation, including its own Python 2 conda env,
+		is correct. Returning an empty list means that the installation is correct and there
+		are not errors. If some errors are found, a list with the error messages will be
+		returned."""
+		mPaths = cls.validatePackageInstallation(IMMU_DIC, 'predict_immunogenicity.py')
+		if not mPaths and not cls.checkCallEnv(IMMU_DIC):
+			mPaths.append("Activation of the Immunogenicity environment failed.\n")
+		return mPaths
+
+	@classmethod
+	def validateElliProInstallation(cls):
+		""" Check if the ElliPro installation alone is correct. Returning an empty list means that the
+		installation is correct and there are not errors. If some errors are found, a list with the error
+		messages will be returned."""
+		mPaths = []
+		if not cls.checkVarPath(ELLI_DIC, 'home') or \
+				not os.path.exists(os.path.join(cls.getVar(ELLI_DIC['home']), 'ElliPro.jar')):
+			mPaths.append(f"ElliPro.jar was not found in {ELLI_DIC['home']}.\n"
+										f"You must provide the downloaded jar file location in the scipion.conf as "
+										f"{ELLI_DIC['jar']} = <pathToElliProJar>.")
+		return mPaths
+
+	@classmethod
+	def validateInstallation(cls):
+		""" Check if the installation of the plugin as a whole is correct, across all six packages it
+		provides. Returning an empty list means that the installation is correct and there are not
+		errors. If some errors are found, a list with the error messages will be returned.
+		This is the plugin-wide check used e.g. by the plugin manager; individual protocols override
+		their own ``validateInstallation`` classmethod so that running one protocol only requires the
+		package it actually needs, not every package this plugin bundles."""
+		mPaths = cls.validateBepiPredInstallation() + cls.validateMHCIInstallation() + cls.validateMHCIIInstallation() + \
+						 cls.validateCoverageInstallation() + cls.validateImmunogenicityInstallation() + cls.validateElliProInstallation()
 
 		if len(mPaths) > 0:
 			mPaths.append(NOINSTALL_WARNING)
@@ -251,11 +320,19 @@ class Plugin(pwchemPlugin):
 	@classmethod
 	def getDefaultDir(cls, softDic, fn=""):
 		emDir = emConfig.EM_ROOT
+		pattern = softDic['pattern'].lower()
 		for file in os.listdir(emDir):
-			if softDic['pattern'] in file.lower():
-				foundDir = os.path.join(emDir, file, fn)
-				return foundDir.rstrip('/')
-		# print(f'BepiPred software could not be found in SOFTWARE directory ({emDir})')
+			fileLower = file.lower()
+			# The directory name must start with the pattern, and whatever follows it (if anything)
+			# must be a separator or a digit, not a letter: a bare substring check would match
+			# 'mhc_ii-...' against pattern 'mhc_i' (since 'mhc_i' is itself a substring of 'mhc_ii'),
+			# silently resolving MHC-I's home to the MHC-II install. Allowing a digit right after the
+			# pattern (no separator) keeps matching folder names like 'BepiPred3_src'.
+			if fileLower.startswith(pattern):
+				rest = fileLower[len(pattern):]
+				if rest == '' or rest[0] in '-_' or rest[0].isdigit():
+					foundDir = os.path.join(emDir, file, fn)
+					return foundDir.rstrip('/')
 		return os.path.join(emConfig.EM_ROOT, cls.getEnvName(softDic))
 
 	@classmethod
@@ -341,8 +418,8 @@ class Plugin(pwchemPlugin):
 	@classmethod
 	def runImmunogenicity(cls, protocol, args, cwd=None, popen=False):
 		""" Run immunogenicity command from a given protocol. """
-		immuHome = cls.getVar(IMMU_DIC["home"])
-		fullProgram = f'python {os.path.join(immuHome, "predict_immunogenicity.py")}'
+		immuHome, immuAct = cls.getVar(IMMU_DIC["home"]), cls.getVar(IMMU_DIC["activation"])
+		fullProgram = f'{immuAct} && python {os.path.join(immuHome, "predict_immunogenicity.py")}'
 		if not popen:
 			protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
 		else:

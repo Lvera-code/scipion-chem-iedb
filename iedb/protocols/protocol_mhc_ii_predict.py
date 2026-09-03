@@ -34,7 +34,7 @@ from pwchem.objects import Sequence, SequenceROI, SetOfSequenceROIs
 
 from .. import Plugin as iedbPlugin
 from ..constants import MHCII_alleles_dic
-from ..utils import getAllMHCIIAlleles
+from ..utils import getAllMHCIIAlleles, matchAllelesToMethod, sanitizeAttrName
 
 SEQ, SEQROIS = 0, 1
 RANK, SCORE, TOPP, NTOP = 0, 1, 2, 3
@@ -46,7 +46,11 @@ class ProtMHCIIPrediction(EMProtocol):
   MINLEN, MAXLEN = 11, 30
   selMap = {RANK: 'rank', SCORE: 'score', TOPP: 'topPerc', NTOP: 'topN'}
 
-  _mhciiMethodsDic = {'IEDB recommended': 'netmhciipan', 'Consensus-2.2': 'consensus',
+  @classmethod
+  def validateInstallation(cls):
+    return iedbPlugin.validateMHCIIInstallation()
+
+  _mhciiMethodsDic = {'IEDB recommended': 'netmhciipan', 'Consensus-2.2': 'consensus3',
                      'NN_align-1.0': 'nn_align', 'SMM_align-1.1': 'smm_align',
                      'Combinatorial Library-1.1': 'comblib', 'Sturniolo': 'sturniolo'}
   _species = ['Human', 'Mouse']
@@ -135,15 +139,12 @@ class ProtMHCIIPrediction(EMProtocol):
     inFile = self.writeInputFasta()
     oFile = self.getMHCOutputFile()
 
-    method = self._mhciiMethodsDic[self.getEnumText('method')]
-    if self.method.get() == 0:
-        pMode = 'ba' if self.predMode.get() == 0 else 'el'
-        method += f'_{pMode}'
+    method = self.getResolvedMethod()
     selAlleles = self.getSelectedAlleles()
     lenList = self.getLenghts()
 
     allowedAlleles = getAllMHCIIAlleles(method)
-    alList = [allele for allele in selAlleles if allele in allowedAlleles]
+    alList = matchAllelesToMethod(selAlleles, allowedAlleles)
     fullAlStr, fullLenStr = ','.join(alList), ','.join([str(l) for l in lenList])
 
     mhcArgs = f'{method.lower()} {fullAlStr} {inFile} {fullLenStr} > {oFile} '
@@ -156,6 +157,7 @@ class ProtMHCIIPrediction(EMProtocol):
     inpSeq = self.inputSequence.get()
     outROIs = SetOfSequenceROIs(filename=self._getPath('sequenceROIs.sqlite'))
     method = f"MHCII_{self.getEnumText('method')}"
+    attrName = sanitizeAttrName(method)
 
     if self.inputSource.get() == SEQ:
       epiDic, epitopesList = epiDic['1'], []
@@ -174,7 +176,7 @@ class ProtMHCIIPrediction(EMProtocol):
         seqROI._allelesMHCII = params.String('/'.join(alleles))
         seqROI._epitopeType = params.String('MHC-II')
         seqROI._source = params.String(method)
-        setattr(seqROI, method, params.Float(score))
+        setattr(seqROI, attrName, params.Float(score))
         outROIs.append(seqROI)
 
     else:
@@ -197,7 +199,7 @@ class ProtMHCIIPrediction(EMProtocol):
         allele, score = '/'.join(curAlleles), min(curScores) if curScores else 0
         curROI._allelesMHCII = params.String(allele)
         curROI._sourceMHCII = params.String(method)
-        setattr(curROI, method, params.Float(score))
+        setattr(curROI, attrName, params.Float(score))
         outROIs.append(curROI)
 
     if len(outROIs) > 0:
@@ -206,9 +208,7 @@ class ProtMHCIIPrediction(EMProtocol):
   ##################### UTILS #####################
 
   def getAvailableAlleles(self):
-    methKey = self._mhciiMethodsDic[self.getEnumText('method')]
-    alleDic = getAllMHCIIAlleles(methKey)
-    return list(alleDic.keys())
+    return getAllMHCIIAlleles(self.getResolvedMethod())
 
   def writeInputFasta(self):
     faFile = self._getExtraPath('inputSequence.fa')
@@ -233,12 +233,16 @@ class ProtMHCIIPrediction(EMProtocol):
     :return: list of epitopes described as [ ((idx, epitopeStr), alleles, score), ... ]
     '''
     allEpitopes = []
-    key, alleles, score = (None, None), set([]), 0 if self.selType == 1 else 100
+    # For selType==SCORE (higher raw score is better, e.g. Sturniolo, which reports scores well
+    # below 0), the sentinel must start below any real score; a sentinel of 0 left `key` at its
+    # initial (None, None) whenever every candidate in a core scored <= 0, crashing the caller.
+    higherIsBetter = self.selType.get() == 1
+    key, alleles, score = (None, None), set(), float('-inf') if higherIsBetter else float('inf')
     for newKey in coreDic:
       for (newAlleles, newScore) in coreDic[newKey]:
         if merge:
           alleles.add(newAlleles)
-          if (newScore > score and self.selType == 1) or (newScore < score and self.selType != 1):
+          if (newScore > score and higherIsBetter) or (newScore < score and not higherIsBetter):
             score, key = newScore, newKey
         else:
           allEpitopes.append((newKey, newAlleles, newScore))
@@ -252,10 +256,11 @@ class ProtMHCIIPrediction(EMProtocol):
     :return: list of non-duplicated epitopes as [ ((idx, epitopeStr), alleles, score), ... ]
     '''
     uniEpitopes = {}
+    higherIsBetter = self.selType.get() == 1
     for (key, newAlleles, newScore) in epitopeList:
        if key in uniEpitopes:
          alleles, score = uniEpitopes[key]
-         newScore = newScore if (newScore > score and self.selType == 1) or (newScore < score and self.selType != 1) \
+         newScore = newScore if (newScore > score and higherIsBetter) or (newScore < score and not higherIsBetter) \
            else score
          newAlleles += alleles
 
@@ -271,7 +276,22 @@ class ProtMHCIIPrediction(EMProtocol):
   def getMHCOutputFile(self):
     return os.path.abspath(self._getExtraPath('mhc-II_results.tsv'))
 
+  def getResolvedMethod(self):
+    '''The exact method string passed to mhc_II_binding.py, including the ba/el suffix for the
+    default (netmhciipan) method.'''
+    method = self._mhciiMethodsDic[self.getEnumText('method')]
+    if self.method.get() == 0:
+      pMode = 'ba' if self.predMode.get() == 0 else 'el'
+      method += f'_{pMode}'
+    return method
+
   def getRankIdx(self):
+    '''netmhciipan and the single-value methods -- nn_align, smm_align, comblib, sturniolo -- share
+    the same 10-column layout (percentile_rank at index 8, ic50/score at index 7). consensus3 is
+    structurally different (24 columns, no single ic50/score value, only per-submethod ones) and
+    reports its own percentile rank at index 6.'''
+    if self.getResolvedMethod() == 'consensus3':
+      return 6 if self.selType.get() != SCORE else None
     return 7 if self.selType.get() == SCORE else 8
 
   def getResultsArray(self, oFile):
@@ -296,24 +316,30 @@ class ProtMHCIIPrediction(EMProtocol):
 
   def parseResults(self, oFile):
     '''Parse the results in the raw_output.tsv file generated by TepiTools and returns a dictionary
-    as {seq_id: {core: {(position, epitopeString): [allele, score]}}}
+    as {seqId: {core: {(position, epitopeString): [allele, score]}}}
     '''
     resAr = self.getResultsArray(oFile)
+    isConsensus = self.getResolvedMethod() == 'consensus3'
 
     # Build the output from the selection
     epiDic = {}
     for row in resAr:
-      allele, seq_id, pos, _, _, core, peptide, score, rank = row[:9]
+      if isConsensus:
+        # consensus3 reports no single core (peptide window) shared across submethods
+        allele, seqId, pos, peptide = row[0], row[1], row[2], row[5]
+        core = peptide
+      else:
+        allele, seqId, pos, core, peptide = row[0], row[1], row[2], row[5], row[6]
       key = (int(pos), peptide)
-      if not seq_id in epiDic:
-        epiDic[seq_id] = {}
-      if not core in epiDic[seq_id]:
-        epiDic[seq_id][core] = {}
-      if not key in epiDic[seq_id][core]:
-        epiDic[seq_id][core][key] = []
+      if seqId not in epiDic:
+        epiDic[seqId] = {}
+      if core not in epiDic[seqId]:
+        epiDic[seqId][core] = {}
+      if key not in epiDic[seqId][core]:
+        epiDic[seqId][core][key] = []
 
       rankIdx = self.getRankIdx()
-      epiDic[seq_id][core][key].append([allele, float(row[rankIdx])])
+      epiDic[seqId][core][key].append([allele, float(row[rankIdx])])
     return epiDic
 
   def getInputSequences(self):
@@ -344,6 +370,10 @@ class ProtMHCIIPrediction(EMProtocol):
       if c == 0:
         vals.append(f'None of the input sequence ROIs is at least {min(lens)} residues long, so the analysis cannot '
                     f'be performed. Please check your input.')
+
+    if self.getResolvedMethod() == 'consensus3' and self.selType.get() == SCORE:
+      vals.append('The Consensus method does not report a single score/ic50 value (only one per '
+                  'submethod); select a different Selection type or method.')
 
     return vals
 

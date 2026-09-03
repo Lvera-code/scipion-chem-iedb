@@ -26,9 +26,12 @@
 
 from iedb.tests.tests import (
     TestBepiPredPrediction,
+    TestBepiPredPredictionWindowVote,
     TestMHCIPrediction,
     TestMHCIIPrediction,
+    TestMHCLabelROIs,
     TestImmunogenicityPrediction,
     TestMHCPopulationCoverage,
     TestElliProPrediction
 )
+from iedb.tests.test_alt_methods import TestAlternativeMethods
